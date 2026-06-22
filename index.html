@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0">
+<title>辩论证伪 · 知识卡片流</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="辩论证伪">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="每一个问题都有三面：正方、反方、综合。刷的不是下一个知识点，而是同一个问题的不同立场在打架。">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Noto Sans SC', -apple-system, sans-serif;
+    background: #050505;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  /* ══════════════════════════════════════
+     HOME SCREEN
+     ══════════════════════════════════════ */
+  #home-screen {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    background: radial-gradient(ellipse at 50% 0%, #0f172a 0%, #050505 60%);
+    overflow: hidden;
+  }
+
+  .home-header {
+    padding: max(4vh, 28px) 6vw 2vh;
+    padding-top: max(4vh, calc(env(safe-area-inset-top, 0px) + 20px));
+    flex-shrink: 0;
+    position: relative; z-index: 2;
+  }
+  .home-header .logo {
+    font-family: 'Noto Serif SC', serif;
+    font-size: clamp(24px, 5vw, 36px);
+    font-weight: 900; color: #f1f5f9;
+    letter-spacing: 0.04em;
+  }
+  .home-header .subtitle {
+    font-size: 13px; color: #64748b;
+    margin-top: 6px; letter-spacing: 0.08em;
+  }
+
+  /* Collection scroll area */
+  .collection-scroll {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 1vh 4vw 4vh;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  .collection-scroll::-webkit-scrollbar { width: 0; }
+
+  .collection-grid {
+    display: flex; flex-direction: column;
+    gap: 16px; max-width: 640px;
+    margin: 0 auto; padding-bottom: 4vh;
+  }
+
+  /* ── Single collection card ── */
+  .collection-card {
+    position: relative;
+    border-radius: 20px;
+    padding: 24px 22px 22px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.03);
+  }
+  .collection-card:active {
+    transform: scale(0.975);
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* Colored left accent */
+  .collection-card::after {
+    content: ''; position: absolute; left: 0; top: 14%; height: 72%;
+    width: 4px; border-radius: 0 3px 3px 0;
+  }
+  .collection-card.c0::after { background: #f59e0b; }
+  .collection-card.c1::after { background: #3b82f6; }
+  .collection-card.c2::after { background: #06b6d4; }
+  .collection-card.c3::after { background: #ef4444; }
+  .collection-card.c4::after { background: #10b981; }
+
+  .collection-card .cc-emoji {
+    font-size: 36px; margin-bottom: 10px;
+  }
+  .collection-card .cc-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 20px; font-weight: 900; color: #f1f5f9;
+    margin-bottom: 6px; letter-spacing: 0.02em;
+  }
+  .collection-card .cc-hook {
+    font-size: 14px; color: #94a3b8; line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .collection-card .cc-meta {
+    display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .collection-card .cc-cat {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    color: #64748b; padding: 4px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+  }
+  .collection-card .cc-flow {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #475569;
+  }
+  .collection-card .cc-flow span {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ── Home page intro banner ── */
+  .intro-banner {
+    margin: 0 0 8px;
+    padding: 18px 20px; border-radius: 16px;
+    background: rgba(168,85,247,0.08);
+    border: 1px solid rgba(168,85,247,0.12);
+    text-align: center;
+  }
+  .intro-banner p {
+    font-size: 13px; color: #a78bfa; line-height: 1.6;
+  }
+  .intro-banner p strong { color: #c4b5fd; }
+
+  /* ══════════════════════════════════════
+     FEED SCREEN (swipe view)
+     ══════════════════════════════════════ */
+  #feed-screen {
+    position: fixed; inset: 0; z-index: 100;
+    background: #050505;
+    transform: translateY(100%);
+    transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+    display: flex; flex-direction: column;
+  }
+  #feed-screen.open { transform: translateY(0); }
+
+  .feed-topbar {
+    position: absolute; top: 0; left: 0; right: 0;
+    z-index: 30;
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: max(3vh, 16px) 5vw;
+    padding-top: max(3vh, env(safe-area-inset-top, 16px));
+  }
+  .btn-back {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #94a3b8; font-size: 14px; font-weight: 600;
+    padding: 10px 18px; border-radius: 28px;
+    cursor: pointer;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: background 0.2s;
+  }
+  .btn-back:active { background: rgba(255,255,255,0.12); }
+  .btn-back svg { width: 16px; height: 16px; }
+
+  .feed-counter {
+    font-size: 12px; color: #475569;
+    font-weight: 600; letter-spacing: 0.08em;
+  }
+
+  /* ── Swipe cards ── */
+  #card-stack {
+    flex: 1; position: relative;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
+  .card {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: max(10vh, 70px) 6vw max(4vh, 30px);
+    padding-bottom: max(4vh, env(safe-area-inset-bottom, 30px));
+    transform: translateY(100%);
+    transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: transform;
+  }
+  .card.active   { transform: translateY(0); }
+  .card.exit-up  { transform: translateY(-105%); }
+  .card.exit-down{ transform: translateY(105%); }
+
+  .card::before {
+    content: ''; position: absolute; inset: 12px;
+    border-radius: 24px;
+    opacity: 0.06;
+    z-index: 0;
+  }
+  .card.thesis::before      { background: #3b82f6; }
+  .card.antithesis::before  { background: #ef4444; }
+  .card.synthesis::before   { background: #a855f7; }
+
+  /* ── Card internals ── */
+  .type-tag {
+    position: relative; z-index: 1;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.15em;
+    margin-bottom: 2vh;
+    padding: 6px 16px; border-radius: 20px;
+    width: fit-content;
+    backdrop-filter: blur(10px);
+  }
+  .thesis .type-tag      { color: #60a5fa; background: rgba(59,130,246,0.15); }
+  .antithesis .type-tag  { color: #f87171; background: rgba(239,68,68,0.15); }
+  .synthesis .type-tag   { color: #c084fc; background: rgba(168,85,247,0.15); }
+
+  .type-tag .tag-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .thesis .type-tag .tag-dot      { background: #3b82f6; }
+  .antithesis .type-tag .tag-dot  { background: #ef4444; }
+  .synthesis .type-tag .tag-dot   { background: #a855f7; }
+
+  .debate-label {
+    position: relative; z-index: 1;
+    font-size: clamp(14px, 2.5vw, 16px);
+    font-weight: 600; color: #64748b;
+    margin-bottom: 1.5vh; letter-spacing: 0.05em;
+  }
+
+  .card-content {
+    position: relative; z-index: 1;
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 2.5vh; max-width: 560px;
+  }
+
+  .big-idea {
+    font-family: 'Noto Serif SC', serif;
+    font-size: clamp(24px, 5.5vw, 38px);
+    font-weight: 900; line-height: 1.25;
+    color: #f1f5f9;
+  }
+  .thesis .big-idea      { color: #bfdbfe; }
+  .antithesis .big-idea  { color: #fecaca; }
+  .synthesis .big-idea   { color: #e9d5ff; }
+
+  .explanation {
+    font-size: clamp(14px, 2.5vw, 17px);
+    font-weight: 400; line-height: 1.8;
+    color: #cbd5e1;
+  }
+  .explanation strong { color: #f8fafc; font-weight: 600; }
+
+  .think-prompt {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; color: #64748b;
+    padding: 13px 16px; border-radius: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    line-height: 1.6;
+  }
+  .think-prompt .prompt-icon { font-size: 18px; flex-shrink: 0; }
+
+  /* ── Triplet indicator (right side) ── */
+  .triplet-indicator {
+    position: absolute; right: 5vw;
+    top: 50%; transform: translateY(-50%);
+    z-index: 5;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    opacity: 0.25;
+  }
+  .triplet-indicator .tick {
+    width: 2px; height: 20px; border-radius: 2px;
+    transition: all 0.4s ease;
+    background: #475569;
+  }
+  .thesis .triplet-indicator .tick:nth-child(1),
+  .antithesis .triplet-indicator .tick:nth-child(2),
+  .synthesis .triplet-indicator .tick:nth-child(3) {
+    opacity: 1; width: 3px;
+  }
+  .thesis .triplet-indicator .tick:nth-child(1)      { background: #3b82f6; }
+  .antithesis .triplet-indicator .tick:nth-child(2)  { background: #ef4444; }
+  .synthesis .triplet-indicator .tick:nth-child(3)   { background: #a855f7; }
+
+  /* ── Progress bar (top) ── */
+  #progress {
+    position: absolute; top: max(3vh, 16px);
+    left: 50%; transform: translateX(-50%);
+    z-index: 25;
+    display: flex; gap: 6px;
+    pointer-events: none;
+  }
+  #progress .pdot {
+    width: 30px; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,0.12);
+    transition: all 0.35s ease;
+  }
+  #progress .pdot.done    { background: rgba(255,255,255,0.45); }
+  #progress .pdot.current { background: #f1f5f9; }
+
+  /* ── Bottom hint (first card only) ── */
+  .bottom-hint {
+    position: absolute; bottom: max(3vh, 20px);
+    bottom: max(3vh, calc(env(safe-area-inset-bottom, 0px) + 16px));
+    left: 50%; transform: translateX(-50%);
+    z-index: 10;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px;
+    pointer-events: none;
+    animation: float 2.5s ease-in-out infinite;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .bottom-hint.visible { opacity: 1; }
+  .bottom-hint span {
+    font-size: 11px; letter-spacing: 0.12em; color: #475569;
+  }
+  .bottom-hint .hint-arrows {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; opacity: 0.5;
+  }
+  .bottom-hint .hint-arrows svg { width: 18px; height: 18px; stroke: #64748b; }
+
+  @keyframes float {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(-6px); }
+  }
+
+  /* ── Empty state (when no feed open) ── */
+  #feed-screen .empty-placeholder {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #1e293b; font-size: 48px;
+    pointer-events: none;
+  }
+
+  /* ── Responsive ── */
+  @media (min-width: 768px) {
+    .collection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 860px; }
+    .intro-banner { grid-column: 1 / -1; }
+    .card { padding: 12vh 14vw 6vh; }
+    .card-content { max-width: 640px; }
+  }
+  @media (min-width: 1024px) {
+    .collection-grid { max-width: 960px; gap: 22px; }
+    .card { padding: 14vh 22vw 8vh; }
+    .card-content { max-width: 680px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     HOME SCREEN
+     ═══════════════════════════════════ -->
+<div id="home-screen">
+  <div class="home-header">
+    <div class="logo">辩论证伪</div>
+    <div class="subtitle">每一个问题都有三面：正方 · 反方 · 综合</div>
+  </div>
+  <div class="collection-scroll" id="collection-scroll">
+    <div class="collection-grid" id="collection-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     FEED SCREEN (swipe feed)
+     ═══════════════════════════════════ -->
+<div id="feed-screen">
+  <div class="feed-topbar">
+    <button class="btn-back" id="btn-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      合集
+    </button>
+    <span class="feed-counter" id="feed-counter"></span>
+  </div>
+  <div id="progress"></div>
+  <div id="card-stack"></div>
+  <div class="bottom-hint" id="hint">
+    <div class="hint-arrows">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+    </div>
+    <span>上滑继续</span>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════
+const COLLECTIONS = [
+  {
+    id: 0,
+    emoji: '📜',
+    title: '秦始皇 · 书同文',
+    category: '历史 / 文化',
+    hook: '"统一"究竟是文明的基石，还是多样性的终结？',
+    cards: [
+      { type:'thesis', tag:'正方 · 统一论', idea:'"书同文"是中国文化史上最伟大的奠基工程之一。', explain:'秦始皇推行<strong>统一文字</strong>（小篆、隶书），结束了战国数百年的"言语异声、文字异形"。从此，<strong>行政效率大幅提升</strong>，中央政令可以准确传达至帝国每个角落，为中国此后两千年的大一统格局奠定了最根本的沟通基础。', prompt:'没有统一的文字系统，一个大帝国能维持多久？罗马帝国在拉丁文统一之前又是什么状态？' },
+      { type:'antithesis', tag:'反方 · 多元论', idea:'统一文字消灭了六国多元的文化基因。', explain:'楚国简帛、齐国刀币铭文、中山国石刻……每一种文字都承载着独特的<strong>思维方式与美学传统</strong>。秦的"焚书"搭配"书同文"，本质是用行政暴力铲除文化多样性。我们今天读不到楚国视角的战国史，正是这种统一付出的<strong>不可逆代价</strong>。', prompt:'如果楚文字幸存，中国文学的面貌会不会完全不同？多样性 vs 效率，哪个更根本？' },
+      { type:'synthesis', tag:'综合 · 辩证', idea:'统一不是目的，是工具——关键是"谁"来定义"统一"。', explain:'书同文的历史价值不容否认：它让中国成为一个<strong>可以对话的共同体</strong>。但反方的提醒同样重要——<strong>统一的价值取决于统一的"标准"由谁、以何种方式制定</strong>。秦式的强制统一 vs 自然演化形成的通用规范，是两种截然不同的模式。今天的普通话推广、互联网平台的内容标准，都在重演这组张力。', prompt:'今天的"标准普通话 vs 方言保护"，是不是书同文2.0？你的母语是什么，它还活着吗？' }
+    ]
+  },
+  {
+    id: 1,
+    emoji: '🎓',
+    title: '科举 · 千年大实验',
+    category: '历史 / 制度',
+    hook: '它让寒门出贵子，也把思想关进了标准答案的笼子。',
+    cards: [
+      { type:'thesis', tag:'正方 · 功绩论', idea:'科举是人类历史上最先进的人才选拔制度。', explain:'在门阀世袭垄断一切的时代，科举第一次让<strong>"知识改变命运"成为现实</strong>。北宋名臣如范仲淹、欧阳修皆出身寒门，凭才学入仕。相比同时期欧洲的贵族世袭和教会垄断，科举提供了<strong>空前的社会流动性</strong>，维系了中国官僚体系的稳定与更新长达1300年。', prompt:'如果没有科举，中国古代社会会不会像印度种姓制度一样固化？' },
+      { type:'antithesis', tag:'反方 · 异化论', idea:'科举最终沦为思想的牢笼，而非解放的工具。', explain:'从王安石改革到明清八股取士，科举逐渐僵化为<strong>"标准化考试工业化"</strong>。士子穷尽一生背诵四书五经、揣摩"标准答案"，<strong>创造力与批判思维被系统性压制</strong>。明代科举只考四书五经、不考数学和自然科学——这直接导致中国在近代科技革命中集体掉队。', prompt:'如果一个制度选拔出来的人只会服从规范，这算是"选拔"还是"筛选"？' },
+      { type:'synthesis', tag:'综合 · 辩证', idea:'开放通道 ≠ 开放思想。真正的问题是"考什么"和"谁出题"。', explain:'科举的设计逻辑——用<strong>统一标准选拔人才</strong>——至今仍是高考、公务员考试、SAT的底层模板。它的进步在于<strong>打破世袭通道</strong>，它的危险在于<strong>通过"标准答案"塑造所有人的思维</strong>。一个好的选拔制度，应该测试"你如何思考"，而不是"你是否背了正确答案"。', prompt:'你正在经历的高考/应试教育，和科举之间有多远的距离？如果让你设计考试，你会怎么改？' }
+    ]
+  },
+  {
+    id: 2,
+    emoji: '⛵',
+    title: '郑和下西洋 · 航海之谜',
+    category: '历史 / 全球史',
+    hook: '世界上最强的舰队，为什么自己烧了图纸、退回大陆？',
+    cards: [
+      { type:'thesis', tag:'正方 · 荣耀论', idea:'郑和七下西洋展示了中国古代最辉煌的海洋时代。', explain:'1405-1433年，郑和率领当时<strong>世界上最庞大的舰队</strong>（据《明史》记载，宝船长约140米），访问30余国，最远抵达非洲东海岸。这比哥伦布首航美洲早了87年，比达·伽马绕行好望角早了93年。<strong>这不是殖民，是和平外交</strong>——大明没有在沿途建立殖民地，而是以朝贡体系构建了亚洲-印度洋的和平贸易圈。', prompt:'如果郑和的船队先到达欧洲，世界历史的走向会完全不同吗？' },
+      { type:'antithesis', tag:'反方 · 浪费论', idea:'下西洋的本质是面子工程，耗空国库后主动放弃。', explain:'郑和航海<strong>不追求经济利益</strong>，反而大量"厚往薄来"——赏赐远超贡物价值。成化年间官员刘大夏等批评其"费钱粮数十万，军民死且万计"。更致命的是：朝廷随后<strong>藏匿了郑和航海档案</strong>，并实施海禁——据《殊域周咨录》记载，刘大夏认为"此特一弊政"，将档案藏了起来。这说明下西洋从一开始就不是海洋战略，而是明成祖的<strong>政治炫耀</strong>——朱棣需要证明篡位的合法性，需要"万国来朝"的排场。', prompt:'一个不追求经济回报的昂贵行动，能持续多久？炫耀性工程有价值吗？' },
+      { type:'synthesis', tag:'综合 · 辩证', idea:'航海能力不等于海洋文明。关键在"去"之后的"留"。', explain:'郑和船队证明了中国的<strong>技术能力</strong>无可匹敌，但哥伦布之后100年欧洲建立了全球殖民帝国，而中国却退回大陆。区别不在于谁先到，在于<strong>制度逻辑</strong>：欧洲航海是资本驱动（东印度公司），中国航海是皇权项目（皇帝死了就停了）。<strong>靠一个人推动的伟大事业，寿命等于这个人</strong>。制度化的探索才能活过任何一个个体。', prompt:'SpaceX和NASA的关系，是不是另一个"郑和 vs 哥伦布"？探索应该靠资本推动还是国家推动？' }
+    ]
+  },
+  {
+    id: 3,
+    emoji: '🔥',
+    title: '五四运动 · 文化十字路口',
+    category: '历史 / 思想',
+    hook: '"打倒孔家店"——是必要的手术，还是过度的自残？',
+    cards: [
+      { type:'thesis', tag:'正方 · 启蒙论', idea:'"打倒孔家店"是中华民族自救的必要手术。', explain:'1919年的五四一代面对的是<strong>亡国灭种</strong>的危机。他们激烈批判儒家传统——不是因为传统没有价值，而是因为<strong>传统在当时的形态已成为现代化的最大障碍</strong>。鲁迅、胡适、陈独秀等引入<strong>"德先生"（民主）和"赛先生"（科学）</strong>，用白话文取代文言文，让知识不再是少数士大夫的垄断品。没有五四，就没有中国现代思想的起点。', prompt:'如果一个病人不做手术就会死，"手术太激进"是合理的批评吗？' },
+      { type:'antithesis', tag:'反方 · 断裂论', idea:'五四激进反传统造成了一个世纪的文化断裂。', explain:'五四的<strong>"全盘反传统"</strong>走向了另一个极端——它把儒家伦理、汉字审美、士人风骨和专制礼教<strong>打包扔掉了</strong>。钱穆后来说"对本国历史须有温情与敬意"——五四恰恰缺这份温情。后果是：几代中国人失去了从自己的文化传统中<strong>提取精神资源的能力</strong>，只能在"追赶西方"和"民族主义"之间摇摆，找不到第三条路。', prompt:'丢掉的东西还能捡回来吗？如果能，要"选择性继承"哪些？' },
+      { type:'synthesis', tag:'综合 · 辩证', idea:'批判传统 ≠ 抛弃传统。真正的问题是：用什么标准来"取"？', explain:'五四将<strong>"质疑"变为合法的思维方式</strong>，这是不可逆的进步。但它也确实把"批判"做成了"否定"。关键分野在于：<strong>对传统进行"区分性批判"</strong>（保留荀子的理性主义，批判董仲舒的神权化）vs "整体性否定"（所有传统=封建糟粕）。今天重读五四，不是要选"对"或"错"，而是要学会做这种<strong>精细化的区分</strong>。', prompt:'你怎么看"取其精华去其糟粕"？这句话的问题恰恰在于——谁来定义什么是精华？' }
+    ]
+  },
+  {
+    id: 4,
+    emoji: '🏭',
+    title: '工业化 · 进步的代价',
+    category: '社会 / 环境',
+    hook: '8亿人脱贫 vs 1个地球升温——这道选择题真的必须做吗？',
+    cards: [
+      { type:'thesis', tag:'正方 · 发展论', idea:'工业化是人类摆脱贫困的唯一已知路径。', explain:'从1953年"一五计划"到成为世界工厂，中国用<strong>70年走完了西方200年的工业化历程</strong>，使8亿人脱贫。人均寿命从1949年的35岁提升到现在的78岁。钢铁、电力、交通、通信——这些<strong>工业文明的物质成果</strong>不是"锦上添花"，而是人之所以能过上体面生活的基础。没有工业化的环保，是富人的奢侈。', prompt:'你能对一个吃不饱饭的人说"别砍树、保护环境"吗？' },
+      { type:'antithesis', tag:'反方 · 代价论', idea:'不计成本的工业化正在透支人类唯一的家园。', explain:'伦敦的雾霾、日本的水俣病、中国的PM2.5……<strong>每一个工业化国家都在重复相同的环境代价</strong>，区别只在于把污染从A地转移到B地（外包给发展中国家）。气候变化不是"未来威胁"——2023年全球平均气温已比工业化前高1.45℃。如果所有发展中国家都按发达国家的模式"先污染后治理"，<strong>地球撑不到"后治理"那一天</strong>。', prompt:'"先污染后治理"和"治了污染再发展"——第二个选项真的存在吗？' },
+      { type:'synthesis', tag:'综合 · 辩证', idea:'不是要不要工业化，而是"用什么方式"工业化。', explain:'反方正确的部分：过去的工业化<strong>把环境当作"免费的污水处理厂"</strong>，这种外部化成本的方式不可持续。正方正确的部分：你不能要求还没吃饱的人为全球变暖买单。真正的出路是<strong>技术路径的选择</strong>——太阳能vs煤、循环经济vs线性消耗。但这里有一个残酷的真相：<strong>绿色技术在最需要它的贫穷国家最贵</strong>。这才是真正的全球正义问题。', prompt:'如果你既是发展中国家公民又是地球居民，这两个身份冲突时，你优先哪个？' }
+    ]
+  }
+];
+
+// ══════════════════════════════════════
+//  BUILD HOME SCREEN
+// ══════════════════════════════════════
+const grid = document.getElementById('collection-grid');
+
+// Intro banner
+const banner = document.createElement('div');
+banner.className = 'intro-banner';
+banner.innerHTML = '<p>选择一个话题，看<strong>正方 · 反方 · 综合</strong>三个立场在你眼前辩论。没有标准答案，只有更深的思考。</p>';
+grid.appendChild(banner);
+
+COLLECTIONS.forEach((col, i) => {
+  const card = document.createElement('div');
+  card.className = `collection-card c${i % 5}`;
+  card.innerHTML = `
+    <div class="cc-emoji">${col.emoji}</div>
+    <div class="cc-title">${col.title}</div>
+    <div class="cc-hook">${col.hook}</div>
+    <div class="cc-meta">
+      <span class="cc-cat">${col.category}</span>
+      <span class="cc-flow">
+        <span style="background:#3b82f6"></span>
+        <span style="background:#ef4444"></span>
+        <span style="background:#a855f7"></span>
+        3 层博弈
+      </span>
+    </div>
+  `;
+  card.addEventListener('click', () => openCollection(i));
+  grid.appendChild(card);
+});
+
+// ══════════════════════════════════════
+//  FEED SCREEN LOGIC
+// ══════════════════════════════════════
+const feedScreen  = document.getElementById('feed-screen');
+const cardStack   = document.getElementById('card-stack');
+const progressBar = document.getElementById('progress');
+const hint        = document.getElementById('hint');
+const counter     = document.getElementById('feed-counter');
+const btnBack     = document.getElementById('btn-back');
+
+let currentCards = [];
+let currentIdx   = 0;
+let isAnimating  = false;
+let cardElements  = [];
+
+btnBack.addEventListener('click', closeFeed);
+
+function openCollection(idx) {
+  const col = COLLECTIONS[idx];
+  currentCards = col.cards;
+  currentIdx   = 0;
+  isAnimating  = false;
+
+  // Clear & build cards
+  cardStack.innerHTML = '';
+  progressBar.innerHTML = '';
+  hint.classList.remove('visible');
+
+  currentCards.forEach((_, i) => {
+    const dot = document.createElement('div'); dot.className = 'pdot';
+    progressBar.appendChild(dot);
+  });
+
+  currentCards.forEach((c) => {
+    const el = document.createElement('div');
+    el.className = `card ${c.type}`;
+    el.innerHTML = `
+      <div class="triplet-indicator">
+        <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+      </div>
+      <div class="type-tag"><span class="tag-dot"></span>${c.tag}</div>
+      <div class="debate-label">${col.category}</div>
+      <div class="card-content">
+        <div class="big-idea">${c.idea}</div>
+        <div class="explanation">${c.explain}</div>
+        <div class="think-prompt">
+          <span class="prompt-icon">💬</span>
+          <span>${c.prompt}</span>
+        </div>
+      </div>
+    `;
+    cardStack.appendChild(el);
+  });
+
+  cardElements = cardStack.querySelectorAll('.card');
+  cardElements[0].classList.add('active');
+  updateFeedProgress(0);
+
+  // Open feed
+  feedScreen.classList.add('open');
+  counter.textContent = `1 / ${currentCards.length}`;
+
+  // Show hint on first card
+  if (currentCards.length > 1) hint.classList.add('visible');
+}
+
+function closeFeed() {
+  feedScreen.classList.remove('open');
+  // Clean up after transition
+  setTimeout(() => {
+    cardStack.innerHTML = '';
+    progressBar.innerHTML = '';
+    currentCards = [];
+    cardElements = [];
+    currentIdx = 0;
+  }, 450);
+}
+
+function updateFeedProgress(idx) {
+  const dots = progressBar.querySelectorAll('.pdot');
+  dots.forEach((d, i) => {
+    d.classList.remove('done', 'current');
+    if (i < idx) d.classList.add('done');
+    if (i === idx) d.classList.add('current');
+  });
+  counter.textContent = `${idx + 1} / ${currentCards.length}`;
+
+  // Hint only on first card
+  if (idx === 0 && currentCards.length > 1) hint.classList.add('visible');
+  else hint.classList.remove('visible');
+}
+
+function goTo(idx, dir) {
+  if (idx < 0 || idx >= currentCards.length || isAnimating) return;
+  isAnimating = true;
+
+  const oldEl = cardElements[currentIdx];
+  const newEl = cardElements[idx];
+
+  oldEl.classList.add(dir === 'up' ? 'exit-up' : 'exit-down');
+  oldEl.classList.remove('active');
+  newEl.classList.remove('exit-up', 'exit-down');
+  newEl.classList.add('active');
+
+  currentIdx = idx;
+  updateFeedProgress(idx);
+
+  setTimeout(() => {
+    oldEl.classList.remove('exit-up', 'exit-down');
+    isAnimating = false;
+  }, 420);
+}
+
+function swipeUp()   { goTo(currentIdx + 1, 'up'); }
+function swipeDown() { goTo(currentIdx - 1, 'down'); }
+
+// ══════════════════════════════════════
+//  INPUT HANDLERS (on feed)
+// ══════════════════════════════════════
+let touchStartY = 0;
+
+document.addEventListener('touchstart', (e) => {
+  if (!feedScreen.classList.contains('open')) return;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  if (!feedScreen.classList.contains('open') || isAnimating) return;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (dy < -50) swipeUp();
+  else if (dy > 50) swipeDown();
+});
+
+let wheelAcc = 0;
+document.addEventListener('wheel', (e) => {
+  if (!feedScreen.classList.contains('open') || isAnimating) return;
+  wheelAcc += e.deltaY;
+  if (wheelAcc > 80)  { swipeUp();   wheelAcc = 0; }
+  if (wheelAcc < -80) { swipeDown(); wheelAcc = 0; }
+}, { passive: true });
+
+document.addEventListener('keydown', (e) => {
+  if (!feedScreen.classList.contains('open')) return;
+  if (e.key === 'ArrowDown' || e.key === 'j')  { e.preventDefault(); swipeUp(); }
+  if (e.key === 'ArrowUp'   || e.key === 'k')  { e.preventDefault(); swipeDown(); }
+  if (e.key === 'Escape') { closeFeed(); }
+});
+
+console.log('🧠 辩论证伪 · 合集 → 卡片流 已就绪');
+console.log('   ' + COLLECTIONS.length + ' 个合集，每组合集 3 层博弈');
+console.log('   点击合集卡片进入 → 上滑刷正/反/综合 → 左上角返回');
+
+// ══════════════════════════════════════
+//  SERVICE WORKER (PWA)
+// ══════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    console.log('📦 SW registered — offline ready');
+  }).catch(() => {
+    console.log('📦 SW skipped (localhost or http)');
+  });
+}
+</script>
+</body>
+</html>
