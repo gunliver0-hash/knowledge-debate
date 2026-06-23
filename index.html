@@ -3,811 +3,627 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0">
-<title>辩论证伪 · 知识卡片流</title>
-
-<!-- PWA -->
+<title>辩论证伪 · 知识流</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="辩论证伪">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="description" content="每一个问题都有三面：正方、反方、综合。刷的不是下一个知识点，而是同一个问题的不同立场在打架。">
+<meta name="description" content="刷知识像刷短视频——冷知识、纠误解、数据冲击、思想辩论，打开就能看。">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 100%; height: 100%; overflow: hidden;
-    font-family: 'Noto Sans SC', -apple-system, sans-serif;
-    background: #050505;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none; -webkit-user-select: none;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: #050505;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
 
-  /* ══════════════════════════════════════
-     HOME SCREEN
-     ══════════════════════════════════════ */
-  #home-screen {
-    width: 100%; height: 100%;
-    display: flex; flex-direction: column;
-    background: radial-gradient(ellipse at 50% 0%, #0f172a 0%, #050505 60%);
-    overflow: hidden;
-  }
+#app { width: 100%; height: 100%; position: relative; }
 
-  .home-header {
-    padding: max(4vh, 28px) 6vw 2vh;
-    padding-top: max(4vh, calc(env(safe-area-inset-top, 0px) + 20px));
-    flex-shrink: 0;
-    position: relative; z-index: 2;
-  }
-  .home-header .logo {
-    font-family: 'Noto Serif SC', serif;
-    font-size: clamp(24px, 5vw, 36px);
-    font-weight: 900; color: #f1f5f9;
-    letter-spacing: 0.04em;
-  }
-  .home-header .subtitle {
-    font-size: 13px; color: #64748b;
-    margin-top: 6px; letter-spacing: 0.08em;
-  }
+/* ═══ FEED ═══ */
+#feed {
+  width: 100%; height: 100%;
+  position: relative; overflow: hidden;
+  touch-action: pan-y;
+}
 
-  /* ── Category filter chips ── */
-  .category-chips {
-    display: flex; gap: 8px; padding: 0 6vw 2vh;
-    flex-shrink: 0; overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .category-chips::-webkit-scrollbar { width: 0; }
-  .chip {
-    padding: 8px 18px; border-radius: 20px;
-    font-size: 13px; font-weight: 600;
-    white-space: nowrap; cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #94a3b8; background: transparent;
-    transition: all 0.25s;
-  }
-  .chip.active {
-    background: #f1f5f9; color: #0a0a0a; border-color: #f1f5f9;
-  }
+/* ── Filter chips ── */
+.chip-bar {
+  position: absolute; top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex; gap: 8px; padding: max(3vh, env(safe-area-inset-top, 12px)) 5vw 10px;
+  overflow-x: auto;
+  pointer-events: auto;
+}
+.chip-bar::-webkit-scrollbar { width: 0; }
+.chip {
+  padding: 7px 16px; border-radius: 16px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+.chip.on { background: #f1f5f9; color: #0a0a0a; border-color: #f1f5f9; }
 
-  /* ── Vertical swipe carousel ── */
-  #carousel {
-    flex: 1; position: relative;
-    overflow: hidden;
-    touch-action: pan-y;
-  }
-  #carousel-track {
-    position: relative;
-    width: 100%;
-    will-change: transform;
-    transition: transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
+/* ── Card container ── */
+#card-container {
+  width: 100%; height: 100%;
+  position: relative;
+}
 
-  .carousel-card {
-    position: absolute; left: 0; right: 0;
-    height: 88%; top: 6%;
-    margin: 0 5vw;
-    border-radius: 24px;
-    padding: 28px 22px 24px;
-    cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.06);
-    background: rgba(255,255,255,0.03);
-    /* transform/opacity driven by JS, only border-color has CSS transition */
-    transition: border-color 0.4s ease;
-    display: flex; flex-direction: column;
-  }
-  .carousel-card.active {
-    border-color: rgba(255,255,255,0.18);
-    box-shadow: 0 0 60px rgba(255,255,255,0.03);
-  }
-  .carousel-card.selected {
-    border-color: rgba(168,85,247,0.4);
-    box-shadow: 0 0 40px rgba(168,85,247,0.1);
-  }
+.feed-card {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: 10vh 7vw;
+  padding-bottom: max(10vh, env(safe-area-inset-bottom, 40px) + 30px);
+  will-change: transform;
+}
+.feed-card.anim { transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
 
-  /* Colored top accent bar */
-  .carousel-card::before {
-    content: ''; position: absolute; top: 0; left: 20%; right: 20%;
-    height: 3px; border-radius: 0 0 3px 3px;
-    transition: opacity 0.35s;
-  }
-  .carousel-card:not(.active)::before { opacity: 0.3; }
-  .carousel-card.ac0::before { background: #f59e0b; }
-  .carousel-card.ac1::before { background: #3b82f6; }
-  .carousel-card.ac2::before { background: #06b6d4; }
-  .carousel-card.ac3::before { background: #ef4444; }
-  .carousel-card.ac4::before { background: #10b981; }
+/* ── Card type styles ── */
+.card-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  margin-bottom: 3vh; width: fit-content;
+  opacity: 0.7;
+}
+.card-emoji { font-size: 42px; margin-bottom: 2.5vh; }
+.card-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 900; line-height: 1.3;
+  color: #f1f5f9; margin-bottom: 2vh;
+}
+.card-body {
+  font-size: clamp(14px, 2.5vw, 17px);
+  line-height: 1.8; color: #cbd5e1;
+  max-width: 540px;
+}
+.card-body strong { color: #f8fafc; font-weight: 600; }
 
-  .carousel-card .cc-emoji { font-size: 38px; margin-bottom: 10px; }
-  .carousel-card .cc-title {
-    font-family: 'Noto Serif SC', serif;
-    font-size: 21px; font-weight: 900; color: #f1f5f9;
-    margin-bottom: 8px;
-  }
-  .carousel-card .cc-hook {
-    font-size: 14px; color: #94a3b8; line-height: 1.55;
-    margin-bottom: 14px;
-  }
-  .carousel-card .cc-meta {
-    display: flex; align-items: center; gap: 10px;
-  }
-  .carousel-card .cc-cat {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-    color: #64748b; padding: 4px 10px; border-radius: 10px;
-    background: rgba(255,255,255,0.05);
-  }
-  .carousel-card .cc-flow {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: #475569;
-  }
-  .carousel-card .cc-flow span {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
-  .carousel-card .tap-hint {
-    position: absolute; right: 16px; bottom: 16px;
-    font-size: 11px; color: #475569;
-    display: flex; align-items: center; gap: 4px;
-    opacity: 0; transition: opacity 0.35s;
-  }
-  .carousel-card.active .tap-hint { opacity: 1; }
+/* misconception */
+.mis-box { margin-bottom: 2.5vh; }
+.mis-label { font-size: 12px; color: #64748b; letter-spacing: 0.1em; margin-bottom: 6px; }
+.mis-text { font-size: clamp(15px, 3vw, 19px); line-height: 1.6; }
+.mis-myth .mis-text { color: #f87171; text-decoration: line-through; text-decoration-color: rgba(248,113,113,0.3); }
+.mis-truth .mis-text { color: #34d399; }
 
-  /* ── Page dots ── */
-  #slide-dots {
-    display: flex; justify-content: center; gap: 8px;
-    padding: 2.5vh 0;
-    padding-bottom: max(2.5vh, calc(env(safe-area-inset-bottom, 0px) + 10px));
-    flex-shrink: 0;
-  }
-  #slide-dots .sdot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    transition: all 0.3s;
-  }
-  #slide-dots .sdot.active {
-    background: #f1f5f9; width: 20px; border-radius: 3px;
-  }
+/* quote */
+.quote-mark { font-size: 48px; color: #a855f7; line-height: 1; margin-bottom: 1vh; }
+.quote-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(20px, 4.5vw, 30px);
+  font-weight: 700; line-height: 1.5;
+  color: #e9d5ff; margin-bottom: 2vh;
+}
+.quote-author { font-size: 14px; color: #a78bfa; margin-bottom: 1.5vh; }
+.quote-context { font-size: 14px; color: #94a3b8; line-height: 1.6; }
 
-  /* ══════════════════════════════════════
-     FEED SCREEN (swipe view)
-     ══════════════════════════════════════ */
-  #feed-screen {
-    position: fixed; inset: 0; z-index: 100;
-    background: #050505;
-    transform: translateY(100%);
-    transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
-    display: flex; flex-direction: column;
-  }
-  #feed-screen.open { transform: translateY(0); }
+/* data */
+.data-big {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(40px, 10vw, 64px);
+  font-weight: 900; color: #fbbf24; line-height: 1.1;
+  margin-bottom: 1.5vh;
+}
+.data-sub { font-size: 14px; color: #f59e0b; margin-bottom: 2vh; }
 
-  .feed-topbar {
-    position: absolute; top: 0; left: 0; right: 0;
-    z-index: 30;
-    display: flex; align-items: center;
-    justify-content: space-between;
-    padding: max(3vh, 16px) 5vw;
-    padding-top: max(3vh, env(safe-area-inset-top, 16px));
-  }
-  .btn-back {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #94a3b8; font-size: 14px; font-weight: 600;
-    padding: 10px 18px; border-radius: 28px;
-    cursor: pointer;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    transition: background 0.2s;
-  }
-  .btn-back:active { background: rgba(255,255,255,0.12); }
-  .btn-back svg { width: 16px; height: 16px; }
+/* story */
+.story-date {
+  font-size: 13px; color: #64748b; letter-spacing: 0.1em;
+  margin-bottom: 1.5vh;
+}
 
-  .feed-counter {
-    font-size: 12px; color: #475569;
-    font-weight: 600; letter-spacing: 0.08em;
-  }
+/* debate entry */
+.debate-entry {
+  border: 2px solid rgba(168,85,247,0.3);
+  border-radius: 20px; padding: 20px;
+  background: rgba(168,85,247,0.06);
+  margin-top: 1vh;
+}
+.debate-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; margin-bottom: 8px; color: #94a3b8;
+}
+.debate-row span {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.debate-tap {
+  margin-top: 14px; font-size: 13px; color: #c084fc;
+  display: flex; align-items: center; gap: 4px;
+}
 
-  /* ── Swipe cards ── */
-  #card-stack {
-    flex: 1; position: relative;
-    overflow: hidden;
-    touch-action: pan-y;
-  }
+/* source */
+.card-source {
+  margin-top: 3vh; font-size: 11px; color: #475569;
+  padding-top: 1.5vh;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
 
-  .card {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    padding: max(10vh, 70px) 6vw max(4vh, 30px);
-    padding-bottom: max(4vh, env(safe-area-inset-bottom, 30px));
-    will-change: transform;
-    /* NO default transition — JS drives animation */
-  }
-  .card.animate-up {
-    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
-  .card.animate-down {
-    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
-  /* Card positions set by JS transform: translate3d(0, y, 0) */
+/* ── Progress ── */
+#feed-progress {
+  position: absolute; bottom: max(2vh, env(safe-area-inset-bottom, 10px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 15; display: flex; gap: 5px;
+}
+#feed-progress .fd {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+}
+#feed-progress .fd.done { background: rgba(255,255,255,0.4); }
+#feed-progress .fd.now { background: #f1f5f9; }
 
-  .card::before {
-    content: ''; position: absolute; inset: 12px;
-    border-radius: 24px;
-    opacity: 0.06;
-    z-index: 0;
-  }
-  .card.thesis::before      { background: #3b82f6; }
-  .card.antithesis::before  { background: #ef4444; }
-  .card.synthesis::before   { background: #a855f7; }
+.bottom-swipe-hint {
+  position: absolute; bottom: max(5vh, 40px);
+  left: 50%; transform: translateX(-50%); z-index: 10;
+  font-size: 11px; color: #475569; pointer-events: none;
+  animation: hintFloat 2s ease-in-out infinite;
+}
+@keyframes hintFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+  50% { transform: translateX(-50%) translateY(-5px); opacity: 1; }
+}
 
-  /* ── Card internals ── */
-  .type-tag {
-    position: relative; z-index: 1;
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 700; letter-spacing: 0.15em;
-    margin-bottom: 2vh;
-    padding: 6px 16px; border-radius: 20px;
-    width: fit-content;
-    backdrop-filter: blur(10px);
-  }
-  .thesis .type-tag      { color: #60a5fa; background: rgba(59,130,246,0.15); }
-  .antithesis .type-tag  { color: #f87171; background: rgba(239,68,68,0.15); }
-  .synthesis .type-tag   { color: #c084fc; background: rgba(168,85,247,0.15); }
+/* ═══ DEBATE OVERLAY ═══ */
+#debate-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: #050505;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  display: flex; flex-direction: column;
+}
+#debate-overlay.open { transform: translateY(0); }
 
-  .type-tag .tag-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-  }
-  .thesis .type-tag .tag-dot      { background: #3b82f6; }
-  .antithesis .type-tag .tag-dot  { background: #ef4444; }
-  .synthesis .type-tag .tag-dot   { background: #a855f7; }
+.debate-topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  z-index: 30;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: max(3vh, env(safe-area-inset-top, 12px)) 5vw;
+}
+.btn-debate-back {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8; font-size: 13px; font-weight: 600;
+  padding: 8px 16px; border-radius: 20px; cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+.debate-counter { font-size: 12px; color: #475569; font-weight: 600; }
 
-  .debate-label {
-    position: relative; z-index: 1;
-    font-size: clamp(14px, 2.5vw, 16px);
-    font-weight: 600; color: #64748b;
-    margin-bottom: 1.5vh; letter-spacing: 0.05em;
-  }
+#debate-progress {
+  position: absolute; top: max(3vh, env(safe-area-inset-top, 12px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 25; display: flex; gap: 6px;
+}
+#debate-progress .db {
+  width: 28px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.12);
+}
+#debate-progress .db.done { background: rgba(255,255,255,0.4); }
+#debate-progress .db.now { background: #f1f5f9; }
 
-  .card-content {
-    position: relative; z-index: 1;
-    flex: 1; display: flex; flex-direction: column;
-    justify-content: center;
-    gap: 2.5vh; max-width: 560px;
-  }
+#debate-stack {
+  flex: 1; position: relative; overflow: hidden;
+  touch-action: pan-y;
+}
 
-  .big-idea {
-    font-family: 'Noto Serif SC', serif;
-    font-size: clamp(24px, 5.5vw, 38px);
-    font-weight: 900; line-height: 1.25;
-    color: #f1f5f9;
-  }
-  .thesis .big-idea      { color: #bfdbfe; }
-  .antithesis .big-idea  { color: #fecaca; }
-  .synthesis .big-idea   { color: #e9d5ff; }
+.dcard {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: max(10vh, 70px) 6vw max(4vh, 30px);
+  padding-bottom: max(4vh, env(safe-area-inset-bottom, 30px));
+  will-change: transform;
+}
+.dcard.danim { transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
 
-  .explanation {
-    font-size: clamp(14px, 2.5vw, 17px);
-    font-weight: 400; line-height: 1.8;
-    color: #cbd5e1;
-  }
-  .explanation strong { color: #f8fafc; font-weight: 600; }
+.dcard::before {
+  content: ''; position: absolute; inset: 12px;
+  border-radius: 24px; opacity: 0.06; z-index: 0;
+}
+.dcard.thesis::before     { background: #3b82f6; }
+.dcard.antithesis::before { background: #ef4444; }
+.dcard.synthesis::before  { background: #a855f7; }
 
-  .think-prompt {
-    display: flex; align-items: flex-start; gap: 10px;
-    font-size: 13px; color: #64748b;
-    padding: 13px 16px; border-radius: 14px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    line-height: 1.6;
-  }
-  .think-prompt .prompt-icon { font-size: 18px; flex-shrink: 0; }
+.dcard-tag {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.12em;
+  margin-bottom: 2vh; padding: 6px 16px; border-radius: 20px;
+  width: fit-content;
+  backdrop-filter: blur(10px);
+}
+.thesis .dcard-tag     { color: #60a5fa; background: rgba(59,130,246,0.15); }
+.antithesis .dcard-tag { color: #f87171; background: rgba(239,68,68,0.15); }
+.synthesis .dcard-tag  { color: #c084fc; background: rgba(168,85,247,0.15); }
 
-  /* ── Triplet indicator (right side) ── */
-  .triplet-indicator {
-    position: absolute; right: 5vw;
-    top: 50%; transform: translateY(-50%);
-    z-index: 5;
-    display: flex; flex-direction: column;
-    gap: 14px;
-    opacity: 0.25;
-  }
-  .triplet-indicator .tick {
-    width: 2px; height: 20px; border-radius: 2px;
-    transition: all 0.4s ease;
-    background: #475569;
-  }
-  .thesis .triplet-indicator .tick:nth-child(1),
-  .antithesis .triplet-indicator .tick:nth-child(2),
-  .synthesis .triplet-indicator .tick:nth-child(3) {
-    opacity: 1; width: 3px;
-  }
-  .thesis .triplet-indicator .tick:nth-child(1)      { background: #3b82f6; }
-  .antithesis .triplet-indicator .tick:nth-child(2)  { background: #ef4444; }
-  .synthesis .triplet-indicator .tick:nth-child(3)   { background: #a855f7; }
+.dcard-tag .tdot { width: 8px; height: 8px; border-radius: 50%; }
+.thesis .tdot     { background: #3b82f6; }
+.antithesis .tdot { background: #ef4444; }
+.synthesis .tdot  { background: #a855f7; }
 
-  /* ── Progress bar (top) ── */
-  #progress {
-    position: absolute; top: max(3vh, 16px);
-    left: 50%; transform: translateX(-50%);
-    z-index: 25;
-    display: flex; gap: 6px;
-    pointer-events: none;
-  }
-  #progress .pdot {
-    width: 30px; height: 3px; border-radius: 2px;
-    background: rgba(255,255,255,0.12);
-    transition: all 0.35s ease;
-  }
-  #progress .pdot.done    { background: rgba(255,255,255,0.45); }
-  #progress .pdot.current { background: #f1f5f9; }
+.dcard-label {
+  position: relative; z-index: 1;
+  font-size: 14px; font-weight: 600; color: #64748b;
+  margin-bottom: 1.5vh; letter-spacing: 0.04em;
+}
 
-  /* ── Bottom hint (first card only) ── */
-  .bottom-hint {
-    position: absolute; bottom: max(3vh, 20px);
-    bottom: max(3vh, calc(env(safe-area-inset-bottom, 0px) + 16px));
-    left: 50%; transform: translateX(-50%);
-    z-index: 10;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 6px;
-    pointer-events: none;
-    animation: float 2.5s ease-in-out infinite;
-    opacity: 0; transition: opacity 0.3s;
-  }
-  .bottom-hint.visible { opacity: 1; }
-  .bottom-hint span {
-    font-size: 11px; letter-spacing: 0.12em; color: #475569;
-  }
-  .bottom-hint .hint-arrows {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 4px; opacity: 0.5;
-  }
-  .bottom-hint .hint-arrows svg { width: 18px; height: 18px; stroke: #64748b; }
+.dcard-content {
+  position: relative; z-index: 1;
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; gap: 2.5vh; max-width: 560px;
+}
 
-  @keyframes float {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%      { transform: translateX(-50%) translateY(-6px); }
-  }
+.dcard-idea {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 900; line-height: 1.25; color: #f1f5f9;
+}
+.thesis .dcard-idea     { color: #bfdbfe; }
+.antithesis .dcard-idea { color: #fecaca; }
+.synthesis .dcard-idea  { color: #e9d5ff; }
 
-  /* ── Empty state (when no feed open) ── */
-  #feed-screen .empty-placeholder {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    color: #1e293b; font-size: 48px;
-    pointer-events: none;
-  }
+.dcard-explain {
+  font-size: clamp(14px, 2.5vw, 16px);
+  line-height: 1.8; color: #cbd5e1;
+}
+.dcard-explain strong { color: #f8fafc; font-weight: 600; }
 
-  /* ── Responsive ── */
-  @media (min-width: 768px) {
-    .carousel-card { margin: 0 16vw; }
-    .card { padding: 12vh 14vw 6vh; }
-    .card-content { max-width: 640px; }
-  }
-  @media (min-width: 1024px) {
-    .carousel-card { margin: 0 22vw; padding: 36px 32px 32px; }
-    .card { padding: 14vh 22vw 8vh; }
-    .card-content { max-width: 680px; }
-  }
+.dcard-prompt {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; color: #64748b;
+  padding: 13px 16px; border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  line-height: 1.6;
+}
+
+/* Side stage marker */
+.stage-marker {
+  position: absolute; right: 5vw;
+  top: 50%; transform: translateY(-50%);
+  z-index: 5;
+  display: flex; flex-direction: column; gap: 14px;
+  opacity: 0.25;
+}
+.stage-marker .sm {
+  width: 2px; height: 20px; border-radius: 2px;
+  background: #475569;
+  transition: all 0.3s ease;
+}
+.thesis .stage-marker .sm:nth-child(1),
+.antithesis .stage-marker .sm:nth-child(2),
+.synthesis .stage-marker .sm:nth-child(3) {
+  opacity: 1; width: 3px;
+}
+.thesis .stage-marker .sm:nth-child(1)     { background: #3b82f6; }
+.antithesis .stage-marker .sm:nth-child(2) { background: #ef4444; }
+.synthesis .stage-marker .sm:nth-child(3)  { background: #a855f7; }
+
+@media (min-width: 768px) {
+  .feed-card { padding: 12vh 16vw; }
+  .dcard { padding: 12vh 14vw 6vh; }
+}
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- ═══════════════════════════════════
-     HOME SCREEN
-     ═══════════════════════════════════ -->
-<div id="home-screen">
-  <div class="home-header">
-    <div class="logo">辩论证伪</div>
-    <div class="subtitle">每一个问题都有三面：正方 · 反方 · 综合</div>
+  <!-- ═══ MAIN FEED ═══ -->
+  <div id="feed">
+    <div class="chip-bar" id="chip-bar"></div>
+    <div id="card-container"></div>
+    <div id="feed-progress"></div>
+    <div class="bottom-swipe-hint" id="swipe-hint">↑ 上滑刷知识</div>
   </div>
-  <div class="category-chips" id="category-chips"></div>
-  <div id="carousel">
-    <div id="carousel-track"></div>
-  </div>
-  <div id="slide-dots"></div>
-</div>
 
-<!-- ═══════════════════════════════════
-     FEED SCREEN (swipe feed)
-     ═══════════════════════════════════ -->
-<div id="feed-screen">
-  <div class="feed-topbar">
-    <button class="btn-back" id="btn-back">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M19 12H5M12 19l-7-7 7-7"/>
-      </svg>
-      合集
-    </button>
-    <span class="feed-counter" id="feed-counter"></span>
-  </div>
-  <div id="progress"></div>
-  <div id="card-stack"></div>
-  <div class="bottom-hint" id="hint">
-    <div class="hint-arrows">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+  <!-- ═══ DEBATE OVERLAY ═══ -->
+  <div id="debate-overlay">
+    <div class="debate-topbar">
+      <button class="btn-debate-back" id="btn-debate-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        返回
+      </button>
+      <span class="debate-counter" id="debate-counter"></span>
     </div>
-    <span>上滑继续</span>
+    <div id="debate-progress"></div>
+    <div id="debate-stack"></div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════
-//  DATA
-// ══════════════════════════════════════
-const COLLECTIONS = [
-  {
-    id: 0,
-    emoji: '📜',
-    title: '秦始皇 · 书同文',
-    category: '历史 / 文化',
-    hook: '"统一"究竟是文明的基石，还是多样性的终结？',
-    cards: [
-      { type:'thesis', tag:'正方 · 统一论', idea:'"书同文"是中国文化史上最伟大的奠基工程之一。', explain:'秦始皇推行<strong>统一文字</strong>（小篆、隶书），结束了战国数百年的"言语异声、文字异形"。从此，<strong>行政效率大幅提升</strong>，中央政令可以准确传达至帝国每个角落，为中国此后两千年的大一统格局奠定了最根本的沟通基础。', prompt:'没有统一的文字系统，一个大帝国能维持多久？罗马帝国在拉丁文统一之前又是什么状态？' },
-      { type:'antithesis', tag:'反方 · 多元论', idea:'统一文字消灭了六国多元的文化基因。', explain:'楚国简帛、齐国刀币铭文、中山国石刻……每一种文字都承载着独特的<strong>思维方式与美学传统</strong>。秦的"焚书"搭配"书同文"，本质是用行政暴力铲除文化多样性。我们今天读不到楚国视角的战国史，正是这种统一付出的<strong>不可逆代价</strong>。', prompt:'如果楚文字幸存，中国文学的面貌会不会完全不同？多样性 vs 效率，哪个更根本？' },
-      { type:'synthesis', tag:'综合 · 辩证', idea:'统一不是目的，是工具——关键是"谁"来定义"统一"。', explain:'书同文的历史价值不容否认：它让中国成为一个<strong>可以对话的共同体</strong>。但反方的提醒同样重要——<strong>统一的价值取决于统一的"标准"由谁、以何种方式制定</strong>。秦式的强制统一 vs 自然演化形成的通用规范，是两种截然不同的模式。今天的普通话推广、互联网平台的内容标准，都在重演这组张力。', prompt:'今天的"标准普通话 vs 方言保护"，是不是书同文2.0？你的母语是什么，它还活着吗？' }
-    ]
-  },
-  {
-    id: 1,
-    emoji: '🎓',
-    title: '科举 · 千年大实验',
-    category: '历史 / 制度',
-    hook: '它让寒门出贵子，也把思想关进了标准答案的笼子。',
-    cards: [
-      { type:'thesis', tag:'正方 · 功绩论', idea:'科举是人类历史上最先进的人才选拔制度。', explain:'在门阀世袭垄断一切的时代，科举第一次让<strong>"知识改变命运"成为现实</strong>。北宋名臣如范仲淹、欧阳修皆出身寒门，凭才学入仕。相比同时期欧洲的贵族世袭和教会垄断，科举提供了<strong>空前的社会流动性</strong>，维系了中国官僚体系的稳定与更新长达1300年。', prompt:'如果没有科举，中国古代社会会不会像印度种姓制度一样固化？' },
-      { type:'antithesis', tag:'反方 · 异化论', idea:'科举最终沦为思想的牢笼，而非解放的工具。', explain:'从王安石改革到明清八股取士，科举逐渐僵化为<strong>"标准化考试工业化"</strong>。士子穷尽一生背诵四书五经、揣摩"标准答案"，<strong>创造力与批判思维被系统性压制</strong>。明代科举只考四书五经、不考数学和自然科学——这直接导致中国在近代科技革命中集体掉队。', prompt:'如果一个制度选拔出来的人只会服从规范，这算是"选拔"还是"筛选"？' },
-      { type:'synthesis', tag:'综合 · 辩证', idea:'开放通道 ≠ 开放思想。真正的问题是"考什么"和"谁出题"。', explain:'科举的设计逻辑——用<strong>统一标准选拔人才</strong>——至今仍是高考、公务员考试、SAT的底层模板。它的进步在于<strong>打破世袭通道</strong>，它的危险在于<strong>通过"标准答案"塑造所有人的思维</strong>。一个好的选拔制度，应该测试"你如何思考"，而不是"你是否背了正确答案"。', prompt:'你正在经历的高考/应试教育，和科举之间有多远的距离？如果让你设计考试，你会怎么改？' }
-    ]
-  },
-  {
-    id: 2,
-    emoji: '⛵',
-    title: '郑和下西洋 · 航海之谜',
-    category: '历史 / 全球史',
-    hook: '世界上最强的舰队，为什么自己烧了图纸、退回大陆？',
-    cards: [
-      { type:'thesis', tag:'正方 · 荣耀论', idea:'郑和七下西洋展示了中国古代最辉煌的海洋时代。', explain:'1405-1433年，郑和率领当时<strong>世界上最庞大的舰队</strong>（据《明史》记载，宝船长约140米），访问30余国，最远抵达非洲东海岸。这比哥伦布首航美洲早了87年，比达·伽马绕行好望角早了93年。<strong>这不是殖民，是和平外交</strong>——大明没有在沿途建立殖民地，而是以朝贡体系构建了亚洲-印度洋的和平贸易圈。', prompt:'如果郑和的船队先到达欧洲，世界历史的走向会完全不同吗？' },
-      { type:'antithesis', tag:'反方 · 浪费论', idea:'下西洋的本质是面子工程，耗空国库后主动放弃。', explain:'郑和航海<strong>不追求经济利益</strong>，反而大量"厚往薄来"——赏赐远超贡物价值。成化年间官员刘大夏等批评其"费钱粮数十万，军民死且万计"。更致命的是：朝廷随后<strong>藏匿了郑和航海档案</strong>，并实施海禁——据《殊域周咨录》记载，刘大夏认为"此特一弊政"，将档案藏了起来。这说明下西洋从一开始就不是海洋战略，而是明成祖的<strong>政治炫耀</strong>——朱棣需要证明篡位的合法性，需要"万国来朝"的排场。', prompt:'一个不追求经济回报的昂贵行动，能持续多久？炫耀性工程有价值吗？' },
-      { type:'synthesis', tag:'综合 · 辩证', idea:'航海能力不等于海洋文明。关键在"去"之后的"留"。', explain:'郑和船队证明了中国的<strong>技术能力</strong>无可匹敌，但哥伦布之后100年欧洲建立了全球殖民帝国，而中国却退回大陆。区别不在于谁先到，在于<strong>制度逻辑</strong>：欧洲航海是资本驱动（东印度公司），中国航海是皇权项目（皇帝死了就停了）。<strong>靠一个人推动的伟大事业，寿命等于这个人</strong>。制度化的探索才能活过任何一个个体。', prompt:'SpaceX和NASA的关系，是不是另一个"郑和 vs 哥伦布"？探索应该靠资本推动还是国家推动？' }
-    ]
-  },
-  {
-    id: 3,
-    emoji: '🔥',
-    title: '五四运动 · 文化十字路口',
-    category: '历史 / 思想',
-    hook: '"打倒孔家店"——是必要的手术，还是过度的自残？',
-    cards: [
-      { type:'thesis', tag:'正方 · 启蒙论', idea:'"打倒孔家店"是中华民族自救的必要手术。', explain:'1919年的五四一代面对的是<strong>亡国灭种</strong>的危机。他们激烈批判儒家传统——不是因为传统没有价值，而是因为<strong>传统在当时的形态已成为现代化的最大障碍</strong>。鲁迅、胡适、陈独秀等引入<strong>"德先生"（民主）和"赛先生"（科学）</strong>，用白话文取代文言文，让知识不再是少数士大夫的垄断品。没有五四，就没有中国现代思想的起点。', prompt:'如果一个病人不做手术就会死，"手术太激进"是合理的批评吗？' },
-      { type:'antithesis', tag:'反方 · 断裂论', idea:'五四激进反传统造成了一个世纪的文化断裂。', explain:'五四的<strong>"全盘反传统"</strong>走向了另一个极端——它把儒家伦理、汉字审美、士人风骨和专制礼教<strong>打包扔掉了</strong>。钱穆后来说"对本国历史须有温情与敬意"——五四恰恰缺这份温情。后果是：几代中国人失去了从自己的文化传统中<strong>提取精神资源的能力</strong>，只能在"追赶西方"和"民族主义"之间摇摆，找不到第三条路。', prompt:'丢掉的东西还能捡回来吗？如果能，要"选择性继承"哪些？' },
-      { type:'synthesis', tag:'综合 · 辩证', idea:'批判传统 ≠ 抛弃传统。真正的问题是：用什么标准来"取"？', explain:'五四将<strong>"质疑"变为合法的思维方式</strong>，这是不可逆的进步。但它也确实把"批判"做成了"否定"。关键分野在于：<strong>对传统进行"区分性批判"</strong>（保留荀子的理性主义，批判董仲舒的神权化）vs "整体性否定"（所有传统=封建糟粕）。今天重读五四，不是要选"对"或"错"，而是要学会做这种<strong>精细化的区分</strong>。', prompt:'你怎么看"取其精华去其糟粕"？这句话的问题恰恰在于——谁来定义什么是精华？' }
-    ]
-  },
-  {
-    id: 4,
-    emoji: '🏭',
-    title: '工业化 · 进步的代价',
-    category: '社会 / 环境',
-    hook: '8亿人脱贫 vs 1个地球升温——这道选择题真的必须做吗？',
-    cards: [
-      { type:'thesis', tag:'正方 · 发展论', idea:'工业化是人类摆脱贫困的唯一已知路径。', explain:'从1953年"一五计划"到成为世界工厂，中国用<strong>70年走完了西方200年的工业化历程</strong>，使8亿人脱贫。人均寿命从1949年的35岁提升到现在的78岁。钢铁、电力、交通、通信——这些<strong>工业文明的物质成果</strong>不是"锦上添花"，而是人之所以能过上体面生活的基础。没有工业化的环保，是富人的奢侈。', prompt:'你能对一个吃不饱饭的人说"别砍树、保护环境"吗？' },
-      { type:'antithesis', tag:'反方 · 代价论', idea:'不计成本的工业化正在透支人类唯一的家园。', explain:'伦敦的雾霾、日本的水俣病、中国的PM2.5……<strong>每一个工业化国家都在重复相同的环境代价</strong>，区别只在于把污染从A地转移到B地（外包给发展中国家）。气候变化不是"未来威胁"——2023年全球平均气温已比工业化前高1.45℃。如果所有发展中国家都按发达国家的模式"先污染后治理"，<strong>地球撑不到"后治理"那一天</strong>。', prompt:'"先污染后治理"和"治了污染再发展"——第二个选项真的存在吗？' },
-      { type:'synthesis', tag:'综合 · 辩证', idea:'不是要不要工业化，而是"用什么方式"工业化。', explain:'反方正确的部分：过去的工业化<strong>把环境当作"免费的污水处理厂"</strong>，这种外部化成本的方式不可持续。正方正确的部分：你不能要求还没吃饱的人为全球变暖买单。真正的出路是<strong>技术路径的选择</strong>——太阳能vs煤、循环经济vs线性消耗。但这里有一个残酷的真相：<strong>绿色技术在最需要它的贫穷国家最贵</strong>。这才是真正的全球正义问题。', prompt:'如果你既是发展中国家公民又是地球居民，这两个身份冲突时，你优先哪个？' }
-    ]
-  }
+// ═══════════════════════════════════════
+//  DATA — Mixed card feed
+// ═══════════════════════════════════════
+const FEED = [
+  // ── 冷知识 ──
+  { type:'fact', cat:'历史', emoji:'🫙', title:'秦始皇陵里有真的水银河',
+    body:'《史记·秦始皇本纪》说陵墓里"以水银为百川江河大海"。1980年代考古队测了陵墓封土，发现汞含量比周围高<strong>几十倍</strong>——两千多年前真有人往地下灌了几十吨水银。',
+    src:'《史记·秦始皇本纪》；常勇等《秦始皇陵中埋藏汞的初步研究》,1983' },
+  { type:'fact', cat:'历史', emoji:'💰', title:'宋朝GDP一度占全球八成',
+    body:'经济学家安格斯·麦迪森测算，公元1000年左右中国GDP占世界总量约<strong>22%到80%之间</strong>。不管你信不信这个数字，北宋年财政收入最高时是明朝的<strong>十几倍</strong>——而这还是在一直跟辽金打仗的情况下。',
+    src:'Angus Maddison,《世界经济千年史》' },
+  { type:'fact', cat:'历史', emoji:'🧪', title:'中国发明了火药，但找到它的最佳用途花了几百年',
+    body:'唐代炼丹师在公元9世纪就发现了火药配方，但最初只用来做"炮竹"和"烟火"。南宋才出现管状火器，而真正让火药改变战争形态的，是欧洲人在15世纪改进的火炮。',
+    src:'Joseph Needham,《中国科学技术史》第五卷' },
+
+  // ── 纠误解 ──
+  { type:'misconception', cat:'历史', emoji:'🧱',
+    myth:'长城是为了挡住北方骑兵入侵',
+    truth:'长城的主要功能不是挡人。<strong>烽火台才是核心</strong>。明代长城每隔几百米就有一座烽火台，信息传递速度比骑马快好几倍。它更像一个"军事预警网络"，而不是一堵墙。',
+    src:'林霨,《The Great Wall》, 2012' },
+  { type:'misconception', cat:'历史', emoji:'🌊',
+    myth:'清朝割让香港是因为打不过英国',
+    truth:'1842年《南京条约》割让香港岛的时候，战争并没有打到香港。<strong>英国人选中香港不是因为打赢了那里，而是因为它有深水港</strong>——他们要的是一个贸易据点，不是一块地。',
+    src:'John Fairbank,《剑桥中国晚清史》' },
+  { type:'misconception', cat:'社会', emoji:'📚',
+    myth:'科举就是古代的高考',
+    truth:'科举考试每三年才考一次，一次录<strong>200到300人</strong>，录取率远低于今天清华北大的录取率。而且考上了就直接分配工作——七品知县起步。',
+    src:'Benjamin Elman,《帝制中国的科举考试》' },
+
+  // ── 短故事 ──
+  { type:'story', cat:'历史', emoji:'⚔️', date:'公元751年',
+    title:'一场败仗，造纸术传到了西方',
+    body:'唐将高仙芝在中亚怛罗斯跟阿拉伯帝国打了一仗，<strong>输了</strong>。但他手下的几个造纸工匠被俘到了撒马尔罕，随后造纸术从那里传到了巴格达、大马士革，最后进入欧洲。<br><br>所以你知道的那句"中国四大发明"，有一项是靠一场败仗传出去的。',
+    src:'《资治通鉴》卷二一六；Jonathan Bloom,《Paper Before Print》' },
+  { type:'story', cat:'科学', emoji:'🌟', date:'1774年',
+    title:'一个清朝女人观测了月食，并写了本书',
+    body:'王贞仪，安徽人，活了29岁。她做了一个灯模拟太阳、一张桌子当地球、一面镜子当月亮，就靠这些解释了月食原理。她还写了一本《月食解》，是中国历史上<strong>极少数留下科学著作的女性</strong>。<br><br>国际天文学联合会用她的名字命名了金星上的一个陨石坑。',
+    src:'《畴人传》卷五十一' },
+
+  // ── 名句 ──
+  { type:'quote', cat:'思想', emoji:'🗣️',
+    quote:'所谓对其本国已往历史有一种温情与敬意者，至少不会对其本国历史抱一种偏激的虚无主义。',
+    author:'钱穆', role:'历史学家',
+    context:'1939年在抗战流亡途中写下的这句话，不是让你"爱国"，是让你<strong>在批判之前先理解</strong>。他写作《国史大纲》时，有一种恐惧：中国人对自己的历史失去了最后的尊重，国家就真的完了。',
+    src:'《国史大纲》卷首"凡读本书请先具下列诸信念"' },
+  { type:'quote', cat:'思想', emoji:'✒️',
+    quote:'从来如此，便对么？',
+    author:'鲁迅', role:'作家', date:'1918',
+    context:'这句话出自《狂人日记》，全文第一人称，总共就七个字。<br><br>"从来如此"这四个字，到今天依然有效。你觉得一个习惯是对的，可能只是因为它存在得足够久。',
+    src:'鲁迅,《狂人日记》,1918' },
+
+  // ── 数据 ──
+  { type:'data', cat:'社会', emoji:'📊',
+    big:'8亿人', sub:'中国过去40年脱贫人口',
+    insight:'按世界银行每人每天1.9美元的标准，中国脱贫人口占<strong>同期全球减贫总数的75%</strong>。这个数字同时也是一个悖论——这么多人的收入跨过了贫困线，但人均碳排放也随之翻了好几倍。',
+    src:'世界银行,《中国减贫四十年》报告,2022' },
+  { type:'data', cat:'社会', emoji:'📈',
+    big:'35 → 78.6', sub:'1949年到2024年人均预期寿命',
+    insight:'翻了一倍还多。1949年的35岁是不被饿死、不被传染病夺走的"幸运值"。78.6岁意味着你大概率能活到抱孙子。<br><br>代价是什么——医疗支出占GDP的比例从2%涨到了<strong>接近7%</strong>。',
+    src:'国家卫健委,2024' },
+
+  // ── 辩论入口 ──
+  { type:'debate-entry', cat:'辩论', debateId:0, emoji:'📜',
+    title:'秦始皇·书同文', hook:'统一文字——是文明的基石，还是对多样性的清除？',
+    previewPos:'正方：行政效率、文化认同、千年格局',
+    previewNeg:'反方：六国文字灭绝、焚书配套、强制同化' },
+  { type:'debate-entry', cat:'辩论', debateId:1, emoji:'🎓',
+    title:'科举·千年大实验', hook:'它让寒门出贵子，也把思想关进了标准答案。',
+    previewPos:'正方：打破世袭、社会流动、1300年的稳定',
+    previewNeg:'反方：八股异化、扼杀创新、抛弃自然科学' },
+  { type:'debate-entry', cat:'辩论', debateId:2, emoji:'🔥',
+    title:'五四运动·文化十字路口', hook:'"打倒孔家店"——必要的手术，还是过度的自残？',
+    previewPos:'正方：亡国灭种之下的自救、白话文、民主与科学',
+    previewNeg:'反方：一个世纪的文化断裂、失去了从传统汲取的能力' },
+  { type:'debate-entry', cat:'辩论', debateId:3, emoji:'🏭',
+    title:'工业化·进步的代价', hook:'8亿人脱贫——同时还在透支谁的未来？',
+    previewPos:'正方：8亿脱贫、寿命翻倍、工业文明的物质成果',
+    previewNeg:'反方：PM2.5、气候变暖、绿色技术只在富国便宜' },
+
+  // ── 更多冷知识 ──
+  { type:'fact', cat:'历史', emoji:'👴', title:'科举史上最老的考生',
+    body:'清道光六年（1826年），广东考生<strong>陆云从</strong>参加乡试，那年他<strong>102岁</strong>。道光皇帝听说后特赐他一个"举人"身份。他死前留下一句："<strong>吾老矣，但试未穷也</strong>。"',
+    src:'《清稗类钞·考试类》' },
+  { type:'fact', cat:'历史', emoji:'⚓', title:'哥伦布的船比郑和的船小得多',
+    body:'哥伦布1492年的旗舰圣玛利亚号长约<strong>19米</strong>——大概一辆加长公交车的大小。据《明史》记载，郑和的宝船长度大约是它的<strong>7倍</strong>。<br><br>虽然郑和宝船的真实尺寸有争议，但有一点没有争议：当时中国能造出世界上最大的木船。',
+    src:'《明史·郑和传》；John Larner,《Marco Polo and the Discovery of the World》' },
+  { type:'fact', cat:'科学', emoji:'🧭', title:'沈括在900年前就记录了疑似UFO',
+    body:'《梦溪笔谈》卷二十一记载：扬州湖中出现一个"大珠"，晚上发光，"其行如飞"。沈括说它持续出现十几年，很多人见过。他本人<strong>倾向于认为那是某种自然现象</strong>，而不是神怪。<br><br>一个宋代科学家对未知事物选择了"先观察、不妄断"——这本身就是一件很酷的事。',
+    src:'沈括,《梦溪笔谈》卷二十一' },
+
+  // ── 更多名句 ──
+  { type:'quote', cat:'思想', emoji:'📖',
+    quote:'学而不思则罔，思而不学则殆。',
+    author:'孔子', role:'《论语·为政》',
+    context:'两千五百年了，这句话到今天依然是学习方法论的全部。<br><br>"罔"是迷失，"殆"是危险。只读书不思考，信息越多越迷茫。只自己想不去学，越琢磨越偏执。',
+    src:'《论语·为政》' },
 ];
 
-// ══════════════════════════════════════
-//  BUILD HOME SCREEN — carousel
-// ══════════════════════════════════════
-const track       = document.getElementById('carousel-track');
-const slideDots   = document.getElementById('slide-dots');
-const chipBar     = document.getElementById('category-chips');
+// ═══════════════════════════════════════
+//  DEBATE DATA
+// ═══════════════════════════════════════
+const DEBATES = [
+  { id:0, title:'秦始皇·书同文', cat:'历史', cards:[
+    { type:'thesis', tag:'正方·统一论', idea:'"书同文"是中国文化史上最伟大的奠基工程之一。', explain:'秦始皇推行<strong>统一文字</strong>（小篆、隶书），结束了战国数百年的"言语异声、文字异形"。从此，<strong>行政效率大幅提升</strong>，中央政令可以准确传达至帝国每个角落，为中国此后两千年的大一统格局奠定了最根本的沟通基础。', prompt:'没有统一文字，一个大帝国能维持多久？' },
+    { type:'antithesis', tag:'反方·多元论', idea:'统一文字消灭了六国多元的文化基因。', explain:'楚国简帛、齐国刀币铭文、中山国石刻……每一种文字都承载着独特的<strong>思维方式与美学传统</strong>。秦的"焚书"搭配"书同文"，本质是用行政暴力铲除文化多样性。我们今天读不到楚国视角的战国史，正是这种统一付出的<strong>不可逆代价</strong>。', prompt:'如果楚文字幸存，中国文学的面貌会不会完全不同？' },
+    { type:'synthesis', tag:'综合·辩证', idea:'统一不是目的，是工具——关键是"谁"来定义"统一"。', explain:'书同文的历史价值不容否认：它让中国成为一个<strong>可以对话的共同体</strong>。但反方的提醒同样重要——<strong>统一的价值取决于"标准"由谁、以何种方式制定</strong>。秦式的强制统一 vs 自然演化形成的通用规范，是两种截然不同的模式。', prompt:'普通话推广 vs 方言保护，是不是今天的"书同文"？' },
+  ]},
+  { id:1, title:'科举·千年大实验', cat:'历史', cards:[
+    { type:'thesis', tag:'正方·功绩论', idea:'科举是人类历史上最先进的人才选拔制度。', explain:'在门阀世袭垄断一切的时代，科举第一次让<strong>"知识改变命运"成为现实</strong>。北宋名臣范仲淹、欧阳修皆出身寒门。相比同时期欧洲的贵族世袭和教会垄断，科举提供了<strong>空前的社会流动性</strong>，维系了中国官僚体系的稳定与更新长达1300年。', prompt:'如果没有科举，古代中国社会会不会像印度种姓一样固化？' },
+    { type:'antithesis', tag:'反方·异化论', idea:'科举最终沦为思想的牢笼。', explain:'从王安石改革到明清八股取士，科举逐渐僵化为<strong>"标准化考试工业"</strong>。士子穷尽一生背诵四书五经、揣摩"标准答案"，<strong>创造力与批判思维被系统性压制</strong>。明代科举只考四书五经、不考数学和自然科学——这直接导致中国在近代科技革命中集体掉队。', prompt:'一个制度选拔出来的人只会服从规范，算"选拔"还是"筛选"？' },
+    { type:'synthesis', tag:'综合·辩证', idea:'开放通道 ≠ 开放思想。核心是"考什么"。', explain:'科举的设计逻辑——用<strong>统一标准选拔人才</strong>——至今仍是高考、公务员考试、SAT的底层模板。它的进步性在于<strong>打破世袭</strong>，它的危险性在于<strong>通过标准答案塑造所有人的思维</strong>。', prompt:'你经历的高考和科举之间有多远的距离？' },
+  ]},
+  { id:2, title:'五四运动·文化十字路口', cat:'思想', cards:[
+    { type:'thesis', tag:'正方·启蒙论', idea:'"打倒孔家店"是民族自救的必要手术。', explain:'1919年的五四一代面对的是<strong>亡国灭种</strong>的危机。鲁迅、胡适、陈独秀等引入<strong>"德先生"和"赛先生"</strong>，用白话文取代文言文，让知识不再是少数士大夫的垄断品。没有五四，就没有中国现代思想的起点。', prompt:'如果一个病人不做手术就会死，"手术太激进"是合理的批评吗？' },
+    { type:'antithesis', tag:'反方·断裂论', idea:'五四激进反传统造成了一个世纪的文化断裂。', explain:'五四把儒家伦理、汉字审美、士人风骨和专制礼教<strong>打包扔掉了</strong>。钱穆后来说"对本国历史须有温情与敬意"——五四恰恰缺这份温情。几代中国人失去了从自己的文化传统中<strong>提取精神资源的能力</strong>。', prompt:'丢掉的东西还能捡回来吗？' },
+    { type:'synthesis', tag:'综合·辩证', idea:'批判≠抛弃。关键是"区分性批判"。', explain:'五四将<strong>"质疑"变为合法的思维方式</strong>，这是不可逆的进步。但它把"批判"做成了"整体否定"。真正的出路是<strong>精细化的区分</strong>——保留理性主义，批判神权化，而不是把所有传统都打成"封建糟粕"。', prompt:'"取其精华去其糟粕"——谁来定义什么是精华？' },
+  ]},
+  { id:3, title:'工业化·进步的代价', cat:'社会', cards:[
+    { type:'thesis', tag:'正方·发展论', idea:'工业化是人类摆脱贫困的唯一已知路径。', explain:'中国用<strong>70年走完了西方200年的工业化历程</strong>，使8亿人脱贫。人均寿命从1949年的35岁提升到现在的78.6岁。钢铁、电力、交通、通信——这些<strong>工业文明的物质成果</strong>不是"锦上添花"，而是人之所以能过上体面生活的基础。', prompt:'你能对一个吃不饱饭的人说"别砍树、保护环境"吗？' },
+    { type:'antithesis', tag:'反方·代价论', idea:'不计成本的工业化正在透支人类唯一的家园。', explain:'伦敦的雾霾、日本的水俣病、中国的PM2.5……<strong>每一个工业化国家都在重复相同的环境代价</strong>。2023年全球平均气温已比工业化前高1.45℃。如果所有发展中国家都按"先污染后治理"的模式走，<strong>地球撑不到"后治理"那一天</strong>。', prompt:'"先污染后治理"和"治了污染再发展"——第二个选项真的存在吗？' },
+    { type:'synthesis', tag:'综合·辩证', idea:'问题不是"要不要"工业化，而是"用什么方式"。', explain:'过去的工业化<strong>把环境当作免费的下水道</strong>。但你不能要求还没吃饱的人为全球变暖买单。真正的出路是<strong>技术路径的选择</strong>——太阳能vs煤、循环经济vs线性消耗。但残酷的是：<strong>绿色技术在最需要它的贫穷国家最贵</strong>。', prompt:'发展中国家的公民、地球居民——两个身份冲突时，你优先哪个？' },
+  ]},
+];
 
-let homeCards     = [];   // card DOM elements
-let homeIndex     = 0;    // current centered card
-let homeTotal     = COLLECTIONS.length;
-let homeAnimating = false;
+// ═══════════════════════════════════════
+//  FEED ENGINE
+// ═══════════════════════════════════════
+const container = document.getElementById('card-container');
+const progressEl = document.getElementById('feed-progress');
+const chipBar = document.getElementById('chip-bar');
+const swipeHint = document.getElementById('swipe-hint');
+
+let filteredCards = [...FEED];
+let feedIdx = 0;
+let cardEls = [];
+let feedMoving = false;
 
 // ── Category chips ──
-const allCats = ['全部', ...new Set(COLLECTIONS.map(c => c.category.split(' / ')[0]))];
-let activeCat = '全部';
-let filteredIdx = []; // indices of COLLECTIONS matching filter
+const cats = ['全部', ...new Set(FEED.map(c => c.cat))];
+let activeFilter = '全部';
 
 function buildChips() {
   chipBar.innerHTML = '';
-  allCats.forEach(cat => {
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (cat === activeCat ? ' active' : '');
-    chip.textContent = cat;
-    chip.addEventListener('click', () => {
-      activeCat = cat;
+  cats.forEach(cat => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (cat === activeFilter ? ' on' : '');
+    c.textContent = cat;
+    c.addEventListener('click', () => {
+      activeFilter = cat;
       buildChips();
       applyFilter();
     });
-    chipBar.appendChild(chip);
+    chipBar.appendChild(c);
   });
 }
 
 function applyFilter() {
-  filteredIdx = [];
-  COLLECTIONS.forEach((col, i) => {
-    if (activeCat === '全部' || col.category.startsWith(activeCat)) {
-      filteredIdx.push(i);
-    }
-  });
-  buildCarousel();
+  filteredCards = activeFilter === '全部'
+    ? [...FEED]
+    : FEED.filter(c => c.cat === activeFilter);
+  feedIdx = 0;
+  buildFeed();
 }
 
-// ── Build carousel cards ──
-function buildCarousel() {
-  const oldActive = homeCards[homeIndex];
-  const oldIdx = homeCards.indexOf(oldActive);
-  const oldCollectionId = oldActive ? oldActive._collectionId : -1;
+// ── Render card HTML ──
+function renderCardHTML(card) {
+  switch (card.type) {
+    case 'fact':
+      return `<div class="card-tag">冷知识 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="card-title">${card.title}</div>
+        <div class="card-body">${card.body}</div>
+        ${card.src ? `<div class="card-source">📚 ${card.src}</div>` : ''}`;
 
-  track.innerHTML = '';
-  slideDots.innerHTML = '';
-  homeCards = [];
-  homeTotal = filteredIdx.length;
-  homeIndex = 0;
+    case 'misconception':
+      return `<div class="card-tag">纠误解 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="mis-box mis-myth"><div class="mis-label">你可能以为</div><div class="mis-text">${card.myth}</div></div>
+        <div class="mis-box mis-truth"><div class="mis-label">实际上</div><div class="mis-text">${card.truth}</div></div>
+        ${card.src ? `<div class="card-source">📚 ${card.src}</div>` : ''}`;
 
-  if (homeTotal === 0) {
-    track.innerHTML = '<div style="color:#475569;text-align:center;width:100vw;padding-top:40vh">暂无该分类的合集</div>';
+    case 'story':
+      return `<div class="card-tag">故事 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="story-date">${card.date}</div>
+        <div class="card-title">${card.title}</div>
+        <div class="card-body">${card.body}</div>
+        ${card.src ? `<div class="card-source">📚 ${card.src}</div>` : ''}`;
+
+    case 'quote':
+      return `<div class="card-tag">名句 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="quote-mark">"</div>
+        <div class="quote-text">${card.quote}</div>
+        <div class="quote-author">—— ${card.author}${card.date ? '，'+card.date : ''}${card.role ? '，'+card.role : ''}</div>
+        <div class="quote-context">${card.context}</div>
+        ${card.src ? `<div class="card-source">📚 ${card.src}</div>` : ''}`;
+
+    case 'data':
+      return `<div class="card-tag">数据 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="data-big">${card.big}</div>
+        <div class="data-sub">${card.sub}</div>
+        <div class="card-body">${card.insight}</div>
+        ${card.src ? `<div class="card-source">📚 ${card.src}</div>` : ''}`;
+
+    case 'debate-entry':
+      return `<div class="card-tag">思想辩论 · ${card.cat}</div>
+        <div class="card-emoji">${card.emoji}</div>
+        <div class="card-title">${card.title}</div>
+        <div class="card-body" style="margin-bottom:1vh">${card.hook}</div>
+        <div class="debate-entry">
+          <div class="debate-row"><span style="background:#3b82f6"></span>${card.previewPos}</div>
+          <div class="debate-row"><span style="background:#ef4444"></span>${card.previewNeg}</div>
+          <div class="debate-tap">👆 点击进入辩论</div>
+        </div>`;
+
+    default: return '';
+  }
+}
+
+// ── Build feed ──
+function buildFeed() {
+  container.innerHTML = '';
+  progressEl.innerHTML = '';
+  cardEls = [];
+
+  if (filteredCards.length === 0) {
+    container.innerHTML = '<div style="color:#475569;text-align:center;padding-top:45vh;font-size:16px">这个分类还没有内容</div>';
     return;
   }
 
-  // Find the best index to start at (preserve previous selection if still in filter)
-  let startIdx = 0;
-  filteredIdx.forEach((ci, fi) => {
-    if (ci === oldCollectionId) startIdx = fi;
-  });
-  homeIndex = startIdx;
-
-  // Set track height to contain all cards
-  track.style.height = `${homeTotal * 100}vh`;
-
-  filteredIdx.forEach((ci, fi) => {
-    const col = COLLECTIONS[ci];
-    const card = document.createElement('div');
-    card.className = `carousel-card ac${ci % 5}`;
-    card._collectionId = ci;
-    card.innerHTML = `
-      <div class="cc-emoji">${col.emoji}</div>
-      <div class="cc-title">${col.title}</div>
-      <div class="cc-hook">${col.hook}</div>
-      <div class="cc-meta">
-        <span class="cc-cat">${col.category}</span>
-        <span class="cc-flow">
-          <span style="background:#3b82f6"></span>
-          <span style="background:#ef4444"></span>
-          <span style="background:#a855f7"></span>
-          3 层博弈
-        </span>
-      </div>
-      <div class="tap-hint">👆 点击进入</div>
-    `;
-    card.addEventListener('click', () => openCollection(ci));
-    card.style.top = `${fi * 100}vh`;
-    card.style.transform = 'scale(0.9)';
-    card.style.opacity = '0.35';
-    track.appendChild(card);
-    homeCards.push(card);
+  filteredCards.forEach((card, i) => {
+    const el = document.createElement('div');
+    el.className = 'feed-card';
+    el.innerHTML = renderCardHTML(card);
+    el.style.transform = 'translate3d(0, 100%, 0)';
+    el._cardData = card;
+    el._idx = i;
+    // Click handler for debate-entry
+    if (card.type === 'debate-entry') {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (e) => {
+        if (Math.abs(lastTouchY - touchStartY) > 5) return; // was a swipe
+        openDebate(card.debateId);
+      });
+    }
+    container.appendChild(el);
+    cardEls.push(el);
 
     const dot = document.createElement('div');
-    dot.className = 'sdot';
-    slideDots.appendChild(dot);
+    dot.className = 'fd';
+    progressEl.appendChild(dot);
   });
 
-  // Jump to correct card without animation
-  track.style.transition = 'none';
-  track.style.transform = `translateY(${-homeIndex * window.innerHeight}px)`;
-  updateCarouselActive();
-
-  // Restore transition after paint
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      track.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-    });
-  });
+  cardEls[0].style.transform = 'translate3d(0, 0, 0)';
+  updateFeedDots(0);
+  swipeHint.style.display = 'block';
 }
 
-function updateCarouselActive() {
-  homeCards.forEach((c, i) => {
-    const isActive = i === homeIndex;
-    c.classList.toggle('active', isActive);
-    c.style.transform = isActive ? 'scale(1)' : 'scale(0.9)';
-    c.style.opacity = isActive ? '1' : '0.35';
-    c.style.pointerEvents = isActive ? 'auto' : 'none';
-  });
-  const dots = slideDots.querySelectorAll('.sdot');
-  dots.forEach((d, i) => d.classList.toggle('active', i === homeIndex));
-}
-
-function updateCarousel(idx, animate = true) {
-  if (idx < 0 || idx >= homeTotal) return;
-  homeIndex = idx;
-
-  if (!animate) track.style.transition = 'none';
-
-  const offset = -homeIndex * window.innerHeight;
-  track.style.transform = `translateY(${offset}px)`;
-  updateCarouselActive();
-
-  if (!animate) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        track.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-      });
-    });
-  }
-}
-
-// ── Vertical swipe ──
-let carouselTouchY = 0;
-document.getElementById('carousel').addEventListener('touchstart', (e) => {
-  carouselTouchY = e.touches[0].clientY;
-}, { passive: true });
-
-document.getElementById('carousel').addEventListener('touchend', (e) => {
-  if (homeAnimating || homeTotal <= 1) return;
-  const dy = e.changedTouches[0].clientY - carouselTouchY;
-  if (dy < -50 && homeIndex < homeTotal - 1) {
-    updateCarousel(homeIndex + 1);
-  } else if (dy > 50 && homeIndex > 0) {
-    updateCarousel(homeIndex - 1);
-  }
-});
-
-// Mouse wheel support
-let carouselWheelAcc = 0;
-document.getElementById('carousel').addEventListener('wheel', (e) => {
-  if (feedScreen.classList.contains('open') || homeAnimating || homeTotal <= 1) return;
-  carouselWheelAcc += e.deltaY;
-  if (carouselWheelAcc > 60 && homeIndex < homeTotal - 1) {
-    updateCarousel(homeIndex + 1); carouselWheelAcc = 0;
-  } else if (carouselWheelAcc < -60 && homeIndex > 0) {
-    updateCarousel(homeIndex - 1); carouselWheelAcc = 0;
-  }
-}, { passive: true });
-
-// Keyboard: ← → to browse
-document.addEventListener('keydown', (e) => {
-  if (feedScreen.classList.contains('open')) return;
-  if (e.key === 'ArrowRight' && homeIndex < homeTotal - 1) updateCarousel(homeIndex + 1);
-  if (e.key === 'ArrowLeft' && homeIndex > 0) updateCarousel(homeIndex - 1);
-});
-
-// ── Init ──
-buildChips();
-applyFilter();
-
-// Re-center on resize
-window.addEventListener('resize', () => {
-  if (!feedScreen.classList.contains('open') && homeCards.length > 0) {
-    updateCarousel(homeIndex, false);
-  }
-});
-
-// ══════════════════════════════════════
-//  FEED SCREEN LOGIC
-// ══════════════════════════════════════
-const feedScreen  = document.getElementById('feed-screen');
-const cardStack   = document.getElementById('card-stack');
-const progressBar = document.getElementById('progress');
-const hint        = document.getElementById('hint');
-const counter     = document.getElementById('feed-counter');
-const btnBack     = document.getElementById('btn-back');
-
-let currentCards = [];
-let currentIdx   = 0;
-let isAnimating  = false;
-let cardElements  = [];
-
-btnBack.addEventListener('click', () => {
-  closeFeed();
-  setTimeout(() => { if (homeCards.length > 0) updateCarousel(homeIndex, false); }, 500);
-});
-
-function openCollection(idx) {
-  const col = COLLECTIONS[idx];
-  currentCards = col.cards;
-  currentIdx   = 0;
-  isAnimating  = false;
-
-  // Clear & build cards
-  cardStack.innerHTML = '';
-  progressBar.innerHTML = '';
-  hint.classList.remove('visible');
-
-  currentCards.forEach((_, i) => {
-    const dot = document.createElement('div'); dot.className = 'pdot';
-    progressBar.appendChild(dot);
-  });
-
-  currentCards.forEach((c) => {
-    const el = document.createElement('div');
-    el.className = `card ${c.type}`;
-    el.innerHTML = `
-      <div class="triplet-indicator">
-        <div class="tick"></div><div class="tick"></div><div class="tick"></div>
-      </div>
-      <div class="type-tag"><span class="tag-dot"></span>${c.tag}</div>
-      <div class="debate-label">${col.category}</div>
-      <div class="card-content">
-        <div class="big-idea">${c.idea}</div>
-        <div class="explanation">${c.explain}</div>
-        <div class="think-prompt">
-          <span class="prompt-icon">💬</span>
-          <span>${c.prompt}</span>
-        </div>
-      </div>
-    `;
-    cardStack.appendChild(el);
-  });
-
-  cardElements = cardStack.querySelectorAll('.card');
-  cardElements.forEach(c => initCard(c));
-  cardElements[0].style.transform = 'translate3d(0, 0, 0)';
-  updateFeedProgress(0);
-
-  // Open feed
-  feedScreen.classList.add('open');
-  counter.textContent = `1 / ${currentCards.length}`;
-
-  // Show hint on first card
-  if (currentCards.length > 1) hint.classList.add('visible');
-}
-
-function closeFeed() {
-  feedScreen.classList.remove('open');
-  // Clean up after transition
-  setTimeout(() => {
-    cardStack.innerHTML = '';
-    progressBar.innerHTML = '';
-    currentCards = [];
-    cardElements = [];
-    currentIdx = 0;
-  }, 450);
-}
-
-function updateFeedProgress(idx) {
-  const dots = progressBar.querySelectorAll('.pdot');
+function updateFeedDots(idx) {
+  const dots = progressEl.querySelectorAll('.fd');
   dots.forEach((d, i) => {
-    d.classList.remove('done', 'current');
+    d.classList.remove('done', 'now');
     if (i < idx) d.classList.add('done');
-    if (i === idx) d.classList.add('current');
+    if (i === idx) d.classList.add('now');
   });
-  counter.textContent = `${idx + 1} / ${currentCards.length}`;
-
-  // Hint only on first card
-  if (idx === 0 && currentCards.length > 1) hint.classList.add('visible');
-  else hint.classList.remove('visible');
+  if (idx > 0) swipeHint.style.display = 'none';
+  else swipeHint.style.display = 'block';
 }
 
-function initCard(cardEl) {
-  cardEl.style.transform = 'translate3d(0, 100%, 0)';
-  cardEl.classList.remove('animate-up', 'animate-down');
-}
+// ── Feed swipe ──
+function feedGoTo(idx, dir) {
+  if (idx < 0 || idx >= cardEls.length || feedMoving) return;
+  feedMoving = true;
 
-function goTo(idx, dir) {
-  if (idx < 0 || idx >= currentCards.length || isAnimating) return;
-  isAnimating = true;
+  const oldEl = cardEls[feedIdx];
+  const newEl = cardEls[idx];
 
-  const oldEl = cardElements[currentIdx];
-  const newEl = cardElements[idx];
+  // Position new card
+  if (dir === 'up') newEl.style.transform = 'translate3d(0, 100%, 0)';
+  else newEl.style.transform = 'translate3d(0, -105%, 0)';
 
-  // Position new card at start
-  if (dir === 'up') {
-    newEl.style.transform = 'translate3d(0, 100%, 0)'; // below
-  } else {
-    newEl.style.transform = 'translate3d(0, -105%, 0)'; // above
-  }
-
-  // Force layout
+  oldEl.classList.add('anim');
+  newEl.classList.add('anim');
   newEl.offsetHeight;
-
-  // Animate both simultaneously
-  oldEl.classList.add(dir === 'up' ? 'animate-up' : 'animate-down');
-  newEl.classList.add(dir === 'up' ? 'animate-up' : 'animate-down');
 
   if (dir === 'up') {
     oldEl.style.transform = 'translate3d(0, -105%, 0)';
@@ -817,73 +633,186 @@ function goTo(idx, dir) {
     newEl.style.transform = 'translate3d(0, 0, 0)';
   }
 
-  currentIdx = idx;
-  updateFeedProgress(idx);
+  feedIdx = idx;
+  updateFeedDots(idx);
 
-  // After animation: snap old card to default WITHOUT transition (prevents ghosting)
   setTimeout(() => {
-    oldEl.classList.remove('animate-up', 'animate-down');
+    oldEl.classList.remove('anim');
     oldEl.style.transition = 'none';
     oldEl.style.transform = 'translate3d(0, 100%, 0)';
-    oldEl.offsetHeight; // force reflow to apply the snap
+    oldEl.offsetHeight;
     oldEl.style.transition = '';
 
-    newEl.classList.remove('animate-up', 'animate-down');
-    isAnimating = false;
-  }, 350);
+    newEl.classList.remove('anim');
+    feedMoving = false;
+  }, 320);
 }
 
-function swipeUp()   { goTo(currentIdx + 1, 'up'); }
-function swipeDown() { goTo(currentIdx - 1, 'down'); }
-
-// ══════════════════════════════════════
-//  INPUT HANDLERS (on feed)
-// ══════════════════════════════════════
-let touchStartY = 0;
-
-document.addEventListener('touchstart', (e) => {
-  if (!feedScreen.classList.contains('open')) return;
+let touchStartY = 0, lastTouchY = 0;
+document.getElementById('feed').addEventListener('touchstart', (e) => {
   touchStartY = e.touches[0].clientY;
+  lastTouchY = touchStartY;
 }, { passive: true });
 
-document.addEventListener('touchend', (e) => {
-  if (!feedScreen.classList.contains('open') || isAnimating) return;
+document.getElementById('feed').addEventListener('touchend', (e) => {
+  if (debateOpen || feedMoving) return;
   const dy = e.changedTouches[0].clientY - touchStartY;
-  if (dy < -50) swipeUp();
-  else if (dy > 50) swipeDown();
+  lastTouchY = e.changedTouches[0].clientY;
+  if (dy < -50) feedGoTo(feedIdx + 1, 'up');
+  else if (dy > 50) feedGoTo(feedIdx - 1, 'down');
 });
 
-let wheelAcc = 0;
-document.addEventListener('wheel', (e) => {
-  if (!feedScreen.classList.contains('open') || isAnimating) return;
-  wheelAcc += e.deltaY;
-  if (wheelAcc > 80)  { swipeUp();   wheelAcc = 0; }
-  if (wheelAcc < -80) { swipeDown(); wheelAcc = 0; }
+document.getElementById('feed').addEventListener('wheel', (e) => {
+  if (debateOpen || feedMoving) return;
+  if (e.deltaY > 40) feedGoTo(feedIdx + 1, 'up');
+  else if (e.deltaY < -40) feedGoTo(feedIdx - 1, 'down');
 }, { passive: true });
 
 document.addEventListener('keydown', (e) => {
-  if (!feedScreen.classList.contains('open')) return;
-  if (e.key === 'ArrowDown' || e.key === 'j')  { e.preventDefault(); swipeUp(); }
-  if (e.key === 'ArrowUp'   || e.key === 'k')  { e.preventDefault(); swipeDown(); }
-  if (e.key === 'Escape') {
-    closeFeed();
-    setTimeout(() => { if (homeCards.length > 0) updateCarousel(homeIndex, false); }, 500);
-  }
+  if (debateOpen) return;
+  if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); feedGoTo(feedIdx + 1, 'up'); }
+  if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); feedGoTo(feedIdx - 1, 'down'); }
 });
 
-console.log('🧠 辩论证伪 · 合集 → 卡片流 已就绪');
-console.log('   ' + COLLECTIONS.length + ' 个合集，每组合集 3 层博弈');
-console.log('   点击合集卡片进入 → 上滑刷正/反/综合 → 左上角返回');
+// ═══════════════════════════════════════
+//  DEBATE ENGINE
+// ═══════════════════════════════════════
+const dOverlay = document.getElementById('debate-overlay');
+const dStack = document.getElementById('debate-stack');
+const dProgress = document.getElementById('debate-progress');
+const dCounter = document.getElementById('debate-counter');
+const btnDBack = document.getElementById('btn-debate-back');
 
-// ══════════════════════════════════════
-//  SERVICE WORKER (PWA)
-// ══════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(() => {
-    console.log('📦 SW registered — offline ready');
-  }).catch(() => {
-    console.log('📦 SW skipped (localhost or http)');
+let debateOpen = false;
+let dCards = [], dIdx = 0, dMoving = false, dEls = [];
+
+btnDBack.addEventListener('click', closeDebate);
+
+function openDebate(id) {
+  const debate = DEBATES.find(d => d.id === id);
+  if (!debate) return;
+  dCards = debate.cards;
+  dIdx = 0;
+  dMoving = false;
+  dStack.innerHTML = '';
+  dProgress.innerHTML = '';
+
+  dCards.forEach((c) => {
+    const el = document.createElement('div');
+    el.className = `dcard ${c.type}`;
+    el.innerHTML = `
+      <div class="stage-marker"><div class="sm"></div><div class="sm"></div><div class="sm"></div></div>
+      <div class="dcard-tag"><span class="tdot"></span>${c.tag}</div>
+      <div class="dcard-label">${debate.cat}</div>
+      <div class="dcard-content">
+        <div class="dcard-idea">${c.idea}</div>
+        <div class="dcard-explain">${c.explain}</div>
+        <div class="dcard-prompt">💬 ${c.prompt}</div>
+      </div>
+    `;
+    el.style.transform = 'translate3d(0, 100%, 0)';
+    dStack.appendChild(el);
+
+    const dot = document.createElement('div'); dot.className = 'db';
+    dProgress.appendChild(dot);
   });
+
+  dEls = dStack.querySelectorAll('.dcard');
+  dEls[0].style.transform = 'translate3d(0, 0, 0)';
+  updateDebateUI();
+  dOverlay.classList.add('open');
+  debateOpen = true;
+}
+
+function closeDebate() {
+  dOverlay.classList.remove('open');
+  debateOpen = false;
+  setTimeout(() => { dStack.innerHTML = ''; dProgress.innerHTML = ''; }, 400);
+}
+
+function updateDebateUI() {
+  dCounter.textContent = `${dIdx + 1} / ${dCards.length}`;
+  const dots = dProgress.querySelectorAll('.db');
+  dots.forEach((d, i) => {
+    d.classList.remove('done', 'now');
+    if (i < dIdx) d.classList.add('done');
+    if (i === dIdx) d.classList.add('now');
+  });
+}
+
+function debateGoTo(idx, dir) {
+  if (idx < 0 || idx >= dCards.length || dMoving) return;
+  dMoving = true;
+  const oldEl = dEls[dIdx];
+  const newEl = dEls[idx];
+
+  if (dir === 'up') newEl.style.transform = 'translate3d(0, 100%, 0)';
+  else newEl.style.transform = 'translate3d(0, -105%, 0)';
+
+  oldEl.classList.add('danim');
+  newEl.classList.add('danim');
+  newEl.offsetHeight;
+
+  if (dir === 'up') {
+    oldEl.style.transform = 'translate3d(0, -105%, 0)';
+    newEl.style.transform = 'translate3d(0, 0, 0)';
+  } else {
+    oldEl.style.transform = 'translate3d(0, 105%, 0)';
+    newEl.style.transform = 'translate3d(0, 0, 0)';
+  }
+  dIdx = idx;
+  updateDebateUI();
+
+  setTimeout(() => {
+    oldEl.classList.remove('danim');
+    oldEl.style.transition = 'none';
+    oldEl.style.transform = 'translate3d(0, 100%, 0)';
+    oldEl.offsetHeight;
+    oldEl.style.transition = '';
+    newEl.classList.remove('danim');
+    dMoving = false;
+  }, 320);
+}
+
+// ── Debate touch ──
+let dtStart = 0;
+document.addEventListener('touchstart', (e) => {
+  if (!debateOpen) return;
+  dtStart = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  if (!debateOpen || dMoving) return;
+  const dy = e.changedTouches[0].clientY - dtStart;
+  if (dy < -50) debateGoTo(dIdx + 1, 'up');
+  else if (dy > 50) debateGoTo(dIdx - 1, 'down');
+});
+
+document.addEventListener('wheel', (e) => {
+  if (!debateOpen || dMoving) return;
+  if (e.deltaY > 40) debateGoTo(dIdx + 1, 'up');
+  else if (e.deltaY < -40) debateGoTo(dIdx - 1, 'down');
+}, { passive: true });
+
+document.addEventListener('keydown', (e) => {
+  if (!debateOpen) return;
+  if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); debateGoTo(dIdx + 1, 'up'); }
+  if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); debateGoTo(dIdx - 1, 'down'); }
+  if (e.key === 'Escape') closeDebate();
+});
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+buildChips();
+applyFilter();
+
+console.log('🧠 知识流已就绪 — ' + FEED.length + ' 张卡片');
+console.log('   冷知识 | 纠误解 | 短故事 | 名句 | 数据 | 辩论');
+console.log('   上滑刷知识 → 遇到辩论卡片点进入 → 上滑刷正/反/综合');
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(() => console.log('📦 SW ready')).catch(() => {});
 }
 </script>
 </body>
