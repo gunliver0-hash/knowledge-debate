@@ -79,9 +79,9 @@
   }
   #carousel-track {
     position: relative;
-    width: 100%; height: 100%;
-    transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+    width: 100%;
     will-change: transform;
+    transition: transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
   .carousel-card {
@@ -93,13 +93,11 @@
     cursor: pointer;
     border: 1px solid rgba(255,255,255,0.06);
     background: rgba(255,255,255,0.03);
-    transition: transform 0.35s ease, opacity 0.35s ease, border-color 0.35s ease;
-    opacity: 0.3;
-    transform: scale(0.9);
+    /* transform/opacity driven by JS, only border-color has CSS transition */
+    transition: border-color 0.4s ease;
     display: flex; flex-direction: column;
   }
   .carousel-card.active {
-    opacity: 1; transform: scale(1);
     border-color: rgba(255,255,255,0.18);
     box-shadow: 0 0 60px rgba(255,255,255,0.03);
   }
@@ -221,13 +219,16 @@
     display: flex; flex-direction: column;
     padding: max(10vh, 70px) 6vw max(4vh, 30px);
     padding-bottom: max(4vh, env(safe-area-inset-bottom, 30px));
-    transform: translateY(100%);
-    transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
     will-change: transform;
+    /* NO default transition — JS drives animation */
   }
-  .card.active   { transform: translateY(0); }
-  .card.exit-up  { transform: translateY(-105%); }
-  .card.exit-down{ transform: translateY(105%); }
+  .card.animate-up {
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .card.animate-down {
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  /* Card positions set by JS transform: translate3d(0, y, 0) */
 
   .card::before {
     content: ''; position: absolute; inset: 12px;
@@ -539,6 +540,10 @@ function applyFilter() {
 
 // ── Build carousel cards ──
 function buildCarousel() {
+  const oldActive = homeCards[homeIndex];
+  const oldIdx = homeCards.indexOf(oldActive);
+  const oldCollectionId = oldActive ? oldActive._collectionId : -1;
+
   track.innerHTML = '';
   slideDots.innerHTML = '';
   homeCards = [];
@@ -546,14 +551,25 @@ function buildCarousel() {
   homeIndex = 0;
 
   if (homeTotal === 0) {
-    track.innerHTML = '<div style="color:#475569;text-align:center;width:100vw">暂无该分类的合集</div>';
+    track.innerHTML = '<div style="color:#475569;text-align:center;width:100vw;padding-top:40vh">暂无该分类的合集</div>';
     return;
   }
+
+  // Find the best index to start at (preserve previous selection if still in filter)
+  let startIdx = 0;
+  filteredIdx.forEach((ci, fi) => {
+    if (ci === oldCollectionId) startIdx = fi;
+  });
+  homeIndex = startIdx;
+
+  // Set track height to contain all cards
+  track.style.height = `${homeTotal * 100}vh`;
 
   filteredIdx.forEach((ci, fi) => {
     const col = COLLECTIONS[ci];
     const card = document.createElement('div');
     card.className = `carousel-card ac${ci % 5}`;
+    card._collectionId = ci;
     card.innerHTML = `
       <div class="cc-emoji">${col.emoji}</div>
       <div class="cc-title">${col.title}</div>
@@ -570,40 +586,59 @@ function buildCarousel() {
       <div class="tap-hint">👆 点击进入</div>
     `;
     card.addEventListener('click', () => openCollection(ci));
+    card.style.top = `${fi * 100}vh`;
+    card.style.transform = 'scale(0.9)';
+    card.style.opacity = '0.35';
     track.appendChild(card);
     homeCards.push(card);
 
-    // Dot
     const dot = document.createElement('div');
     dot.className = 'sdot';
     slideDots.appendChild(dot);
   });
 
-  updateCarousel(0, false);
+  // Jump to correct card without animation
+  track.style.transition = 'none';
+  track.style.transform = `translateY(${-homeIndex * window.innerHeight}px)`;
+  updateCarouselActive();
+
+  // Restore transition after paint
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      track.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    });
+  });
+}
+
+function updateCarouselActive() {
+  homeCards.forEach((c, i) => {
+    const isActive = i === homeIndex;
+    c.classList.toggle('active', isActive);
+    c.style.transform = isActive ? 'scale(1)' : 'scale(0.9)';
+    c.style.opacity = isActive ? '1' : '0.35';
+    c.style.pointerEvents = isActive ? 'auto' : 'none';
+  });
+  const dots = slideDots.querySelectorAll('.sdot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === homeIndex));
 }
 
 function updateCarousel(idx, animate = true) {
+  if (idx < 0 || idx >= homeTotal) return;
   homeIndex = idx;
-  if (!animate) track.style.transition = 'none'; else track.style.transition = '';
 
-  // Stack cards: active card at center, others above/below
-  const h = window.innerHeight;
-  const offset = -(h * idx);
+  if (!animate) track.style.transition = 'none';
+
+  const offset = -homeIndex * window.innerHeight;
   track.style.transform = `translateY(${offset}px)`;
+  updateCarouselActive();
 
   if (!animate) {
-    requestAnimationFrame(() => { track.style.transition = ''; });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        track.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+      });
+    });
   }
-
-  // Update active state & position each card
-  homeCards.forEach((c, i) => {
-    c.classList.toggle('active', i === idx);
-    c.style.top = `${i * 100}%`;
-  });
-
-  // Update dots
-  const dots = slideDots.querySelectorAll('.sdot');
-  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
 }
 
 // ── Vertical swipe ──
@@ -710,7 +745,8 @@ function openCollection(idx) {
   });
 
   cardElements = cardStack.querySelectorAll('.card');
-  cardElements[0].classList.add('active');
+  cardElements.forEach(c => initCard(c));
+  cardElements[0].style.transform = 'translate3d(0, 0, 0)';
   updateFeedProgress(0);
 
   // Open feed
@@ -747,6 +783,11 @@ function updateFeedProgress(idx) {
   else hint.classList.remove('visible');
 }
 
+function initCard(cardEl) {
+  cardEl.style.transform = 'translate3d(0, 100%, 0)';
+  cardEl.classList.remove('animate-up', 'animate-down');
+}
+
 function goTo(idx, dir) {
   if (idx < 0 || idx >= currentCards.length || isAnimating) return;
   isAnimating = true;
@@ -754,18 +795,42 @@ function goTo(idx, dir) {
   const oldEl = cardElements[currentIdx];
   const newEl = cardElements[idx];
 
-  oldEl.classList.add(dir === 'up' ? 'exit-up' : 'exit-down');
-  oldEl.classList.remove('active');
-  newEl.classList.remove('exit-up', 'exit-down');
-  newEl.classList.add('active');
+  // Position new card at start
+  if (dir === 'up') {
+    newEl.style.transform = 'translate3d(0, 100%, 0)'; // below
+  } else {
+    newEl.style.transform = 'translate3d(0, -105%, 0)'; // above
+  }
+
+  // Force layout
+  newEl.offsetHeight;
+
+  // Animate both simultaneously
+  oldEl.classList.add(dir === 'up' ? 'animate-up' : 'animate-down');
+  newEl.classList.add(dir === 'up' ? 'animate-up' : 'animate-down');
+
+  if (dir === 'up') {
+    oldEl.style.transform = 'translate3d(0, -105%, 0)';
+    newEl.style.transform = 'translate3d(0, 0, 0)';
+  } else {
+    oldEl.style.transform = 'translate3d(0, 105%, 0)';
+    newEl.style.transform = 'translate3d(0, 0, 0)';
+  }
 
   currentIdx = idx;
   updateFeedProgress(idx);
 
+  // After animation: snap old card to default WITHOUT transition (prevents ghosting)
   setTimeout(() => {
-    oldEl.classList.remove('exit-up', 'exit-down');
+    oldEl.classList.remove('animate-up', 'animate-down');
+    oldEl.style.transition = 'none';
+    oldEl.style.transform = 'translate3d(0, 100%, 0)';
+    oldEl.offsetHeight; // force reflow to apply the snap
+    oldEl.style.transition = '';
+
+    newEl.classList.remove('animate-up', 'animate-down');
     isAnimating = false;
-  }, 420);
+  }, 350);
 }
 
 function swipeUp()   { goTo(currentIdx + 1, 'up'); }
