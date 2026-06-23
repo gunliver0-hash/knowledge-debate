@@ -52,90 +52,124 @@
     margin-top: 6px; letter-spacing: 0.08em;
   }
 
-  /* Collection scroll area */
-  .collection-scroll {
-    flex: 1; overflow-y: auto; overflow-x: hidden;
-    padding: 1vh 4vw 4vh;
+  /* ── Category filter chips ── */
+  .category-chips {
+    display: flex; gap: 8px; padding: 0 6vw 2vh;
+    flex-shrink: 0; overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
   }
-  .collection-scroll::-webkit-scrollbar { width: 0; }
-
-  .collection-grid {
-    display: flex; flex-direction: column;
-    gap: 16px; max-width: 640px;
-    margin: 0 auto; padding-bottom: 4vh;
+  .category-chips::-webkit-scrollbar { width: 0; }
+  .chip {
+    padding: 8px 18px; border-radius: 20px;
+    font-size: 13px; font-weight: 600;
+    white-space: nowrap; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #94a3b8; background: transparent;
+    transition: all 0.25s;
+  }
+  .chip.active {
+    background: #f1f5f9; color: #0a0a0a; border-color: #f1f5f9;
   }
 
-  /* ── Single collection card ── */
-  .collection-card {
-    position: relative;
-    border-radius: 20px;
-    padding: 24px 22px 22px;
-    cursor: pointer;
+  /* ── Horizontal swipe carousel ── */
+  #carousel {
+    flex: 1; position: relative;
     overflow: hidden;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    touch-action: pan-x;
+    display: flex; align-items: center;
+    justify-content: center;
+  }
+  #carousel-track {
+    display: flex; align-items: center;
+    transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: transform;
+  }
+
+  .carousel-card {
+    flex-shrink: 0;
+    width: 82vw; max-width: 380px;
+    margin: 0 3.5vw;
+    border-radius: 24px;
+    padding: 28px 22px 24px;
+    cursor: pointer;
+    position: relative;
     border: 1px solid rgba(255,255,255,0.06);
     background: rgba(255,255,255,0.03);
+    transition: transform 0.35s ease, opacity 0.35s ease, border-color 0.35s ease;
+    opacity: 0.35;
+    transform: scale(0.86);
   }
-  .collection-card:active {
-    transform: scale(0.975);
-    background: rgba(255,255,255,0.06);
+  .carousel-card.active {
+    opacity: 1; transform: scale(1);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 0 60px rgba(255,255,255,0.03);
+  }
+  .carousel-card.selected {
+    border-color: rgba(168,85,247,0.4);
+    box-shadow: 0 0 40px rgba(168,85,247,0.1);
   }
 
-  /* Colored left accent */
-  .collection-card::after {
-    content: ''; position: absolute; left: 0; top: 14%; height: 72%;
-    width: 4px; border-radius: 0 3px 3px 0;
+  /* Colored top accent bar */
+  .carousel-card::before {
+    content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+    height: 3px; border-radius: 0 0 3px 3px;
+    transition: opacity 0.35s;
   }
-  .collection-card.c0::after { background: #f59e0b; }
-  .collection-card.c1::after { background: #3b82f6; }
-  .collection-card.c2::after { background: #06b6d4; }
-  .collection-card.c3::after { background: #ef4444; }
-  .collection-card.c4::after { background: #10b981; }
+  .carousel-card:not(.active)::before { opacity: 0.3; }
+  .carousel-card.ac0::before { background: #f59e0b; }
+  .carousel-card.ac1::before { background: #3b82f6; }
+  .carousel-card.ac2::before { background: #06b6d4; }
+  .carousel-card.ac3::before { background: #ef4444; }
+  .carousel-card.ac4::before { background: #10b981; }
 
-  .collection-card .cc-emoji {
-    font-size: 36px; margin-bottom: 10px;
-  }
-  .collection-card .cc-title {
+  .carousel-card .cc-emoji { font-size: 38px; margin-bottom: 10px; }
+  .carousel-card .cc-title {
     font-family: 'Noto Serif SC', serif;
-    font-size: 20px; font-weight: 900; color: #f1f5f9;
-    margin-bottom: 6px; letter-spacing: 0.02em;
+    font-size: 21px; font-weight: 900; color: #f1f5f9;
+    margin-bottom: 8px;
   }
-  .collection-card .cc-hook {
+  .carousel-card .cc-hook {
     font-size: 14px; color: #94a3b8; line-height: 1.55;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
-  .collection-card .cc-meta {
-    display: flex; align-items: center; gap: 12px;
-    flex-wrap: wrap;
+  .carousel-card .cc-meta {
+    display: flex; align-items: center; gap: 10px;
   }
-  .collection-card .cc-cat {
+  .carousel-card .cc-cat {
     font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
     color: #64748b; padding: 4px 10px; border-radius: 10px;
     background: rgba(255,255,255,0.05);
   }
-  .collection-card .cc-flow {
+  .carousel-card .cc-flow {
     display: flex; align-items: center; gap: 5px;
     font-size: 11px; color: #475569;
   }
-  .collection-card .cc-flow span {
-    width: 8px; height: 8px; border-radius: 50%;
-    display: inline-block;
+  .carousel-card .cc-flow span {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
   }
+  .carousel-card .tap-hint {
+    position: absolute; right: 16px; bottom: 16px;
+    font-size: 11px; color: #475569;
+    display: flex; align-items: center; gap: 4px;
+    opacity: 0; transition: opacity 0.35s;
+  }
+  .carousel-card.active .tap-hint { opacity: 1; }
 
-  /* ── Home page intro banner ── */
-  .intro-banner {
-    margin: 0 0 8px;
-    padding: 18px 20px; border-radius: 16px;
-    background: rgba(168,85,247,0.08);
-    border: 1px solid rgba(168,85,247,0.12);
-    text-align: center;
+  /* ── Page dots ── */
+  #slide-dots {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 2.5vh 0;
+    padding-bottom: max(2.5vh, calc(env(safe-area-inset-bottom, 0px) + 10px));
+    flex-shrink: 0;
   }
-  .intro-banner p {
-    font-size: 13px; color: #a78bfa; line-height: 1.6;
+  #slide-dots .sdot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: all 0.3s;
   }
-  .intro-banner p strong { color: #c4b5fd; }
+  #slide-dots .sdot.active {
+    background: #f1f5f9; width: 20px; border-radius: 3px;
+  }
 
   /* ══════════════════════════════════════
      FEED SCREEN (swipe view)
@@ -344,13 +378,12 @@
 
   /* ── Responsive ── */
   @media (min-width: 768px) {
-    .collection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 860px; }
-    .intro-banner { grid-column: 1 / -1; }
+    .carousel-card { width: 60vw; max-width: 440px; }
     .card { padding: 12vh 14vw 6vh; }
     .card-content { max-width: 640px; }
   }
   @media (min-width: 1024px) {
-    .collection-grid { max-width: 960px; gap: 22px; }
+    .carousel-card { width: 50vw; max-width: 500px; }
     .card { padding: 14vh 22vw 8vh; }
     .card-content { max-width: 680px; }
   }
@@ -366,9 +399,11 @@
     <div class="logo">辩论证伪</div>
     <div class="subtitle">每一个问题都有三面：正方 · 反方 · 综合</div>
   </div>
-  <div class="collection-scroll" id="collection-scroll">
-    <div class="collection-grid" id="collection-grid"></div>
+  <div class="category-chips" id="category-chips"></div>
+  <div id="carousel">
+    <div id="carousel-track"></div>
   </div>
+  <div id="slide-dots"></div>
 </div>
 
 <!-- ═══════════════════════════════════
@@ -462,35 +497,162 @@ const COLLECTIONS = [
 ];
 
 // ══════════════════════════════════════
-//  BUILD HOME SCREEN
+//  BUILD HOME SCREEN — carousel
 // ══════════════════════════════════════
-const grid = document.getElementById('collection-grid');
+const track       = document.getElementById('carousel-track');
+const slideDots   = document.getElementById('slide-dots');
+const chipBar     = document.getElementById('category-chips');
 
-// Intro banner
-const banner = document.createElement('div');
-banner.className = 'intro-banner';
-banner.innerHTML = '<p>选择一个话题，看<strong>正方 · 反方 · 综合</strong>三个立场在你眼前辩论。没有标准答案，只有更深的思考。</p>';
-grid.appendChild(banner);
+let homeCards     = [];   // card DOM elements
+let homeIndex     = 0;    // current centered card
+let homeTotal     = COLLECTIONS.length;
+let homeAnimating = false;
 
-COLLECTIONS.forEach((col, i) => {
-  const card = document.createElement('div');
-  card.className = `collection-card c${i % 5}`;
-  card.innerHTML = `
-    <div class="cc-emoji">${col.emoji}</div>
-    <div class="cc-title">${col.title}</div>
-    <div class="cc-hook">${col.hook}</div>
-    <div class="cc-meta">
-      <span class="cc-cat">${col.category}</span>
-      <span class="cc-flow">
-        <span style="background:#3b82f6"></span>
-        <span style="background:#ef4444"></span>
-        <span style="background:#a855f7"></span>
-        3 层博弈
-      </span>
-    </div>
-  `;
-  card.addEventListener('click', () => openCollection(i));
-  grid.appendChild(card);
+// ── Category chips ──
+const allCats = ['全部', ...new Set(COLLECTIONS.map(c => c.category.split(' / ')[0]))];
+let activeCat = '全部';
+let filteredIdx = []; // indices of COLLECTIONS matching filter
+
+function buildChips() {
+  chipBar.innerHTML = '';
+  allCats.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (cat === activeCat ? ' active' : '');
+    chip.textContent = cat;
+    chip.addEventListener('click', () => {
+      activeCat = cat;
+      buildChips();
+      applyFilter();
+    });
+    chipBar.appendChild(chip);
+  });
+}
+
+function applyFilter() {
+  filteredIdx = [];
+  COLLECTIONS.forEach((col, i) => {
+    if (activeCat === '全部' || col.category.startsWith(activeCat)) {
+      filteredIdx.push(i);
+    }
+  });
+  buildCarousel();
+}
+
+// ── Build carousel cards ──
+function buildCarousel() {
+  track.innerHTML = '';
+  slideDots.innerHTML = '';
+  homeCards = [];
+  homeTotal = filteredIdx.length;
+  homeIndex = 0;
+
+  if (homeTotal === 0) {
+    track.innerHTML = '<div style="color:#475569;text-align:center;width:100vw">暂无该分类的合集</div>';
+    return;
+  }
+
+  filteredIdx.forEach((ci, fi) => {
+    const col = COLLECTIONS[ci];
+    const card = document.createElement('div');
+    card.className = `carousel-card ac${ci % 5}`;
+    card.innerHTML = `
+      <div class="cc-emoji">${col.emoji}</div>
+      <div class="cc-title">${col.title}</div>
+      <div class="cc-hook">${col.hook}</div>
+      <div class="cc-meta">
+        <span class="cc-cat">${col.category}</span>
+        <span class="cc-flow">
+          <span style="background:#3b82f6"></span>
+          <span style="background:#ef4444"></span>
+          <span style="background:#a855f7"></span>
+          3 层博弈
+        </span>
+      </div>
+      <div class="tap-hint">👆 点击进入</div>
+    `;
+    card.addEventListener('click', () => openCollection(ci));
+    track.appendChild(card);
+    homeCards.push(card);
+
+    // Dot
+    const dot = document.createElement('div');
+    dot.className = 'sdot';
+    slideDots.appendChild(dot);
+  });
+
+  updateCarousel(0, false);
+}
+
+function updateCarousel(idx, animate = true) {
+  homeIndex = idx;
+  if (!animate) track.style.transition = 'none'; else track.style.transition = '';
+
+  // Center the active card
+  const cardW = homeCards[0]?.offsetWidth || 300;
+  const margin = window.innerWidth * 0.035;
+  const fullW = cardW + margin * 2;
+  const offset = -(fullW * idx) + (window.innerWidth - cardW) / 2 - margin;
+  track.style.transform = `translateX(${offset}px)`;
+
+  if (!animate) {
+    requestAnimationFrame(() => { track.style.transition = ''; });
+  }
+
+  // Update active state
+  homeCards.forEach((c, i) => {
+    c.classList.toggle('active', i === idx);
+  });
+
+  // Update dots
+  const dots = slideDots.querySelectorAll('.sdot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+// ── Horizontal swipe ──
+let carouselTouchX = 0;
+document.getElementById('carousel').addEventListener('touchstart', (e) => {
+  carouselTouchX = e.touches[0].clientX;
+}, { passive: true });
+
+document.getElementById('carousel').addEventListener('touchend', (e) => {
+  if (homeAnimating || homeTotal <= 1) return;
+  const dx = e.changedTouches[0].clientX - carouselTouchX;
+  if (dx < -60 && homeIndex < homeTotal - 1) {
+    updateCarousel(homeIndex + 1);
+  } else if (dx > 60 && homeIndex > 0) {
+    updateCarousel(homeIndex - 1);
+  }
+});
+
+// Mouse drag support
+let mouseDown = false, mouseStartX = 0;
+document.getElementById('carousel').addEventListener('mousedown', (e) => {
+  mouseDown = true; mouseStartX = e.clientX;
+});
+document.addEventListener('mouseup', (e) => {
+  if (!mouseDown || homeAnimating || homeTotal <= 1) { mouseDown = false; return; }
+  mouseDown = false;
+  const dx = e.clientX - mouseStartX;
+  if (dx < -60 && homeIndex < homeTotal - 1) updateCarousel(homeIndex + 1);
+  else if (dx > 60 && homeIndex > 0) updateCarousel(homeIndex - 1);
+});
+
+// Keyboard: ← → to browse
+document.addEventListener('keydown', (e) => {
+  if (feedScreen.classList.contains('open')) return;
+  if (e.key === 'ArrowRight' && homeIndex < homeTotal - 1) updateCarousel(homeIndex + 1);
+  if (e.key === 'ArrowLeft' && homeIndex > 0) updateCarousel(homeIndex - 1);
+});
+
+// ── Init ──
+buildChips();
+applyFilter();
+
+// Re-center on resize
+window.addEventListener('resize', () => {
+  if (!feedScreen.classList.contains('open') && homeCards.length > 0) {
+    updateCarousel(homeIndex, false);
+  }
 });
 
 // ══════════════════════════════════════
@@ -508,7 +670,10 @@ let currentIdx   = 0;
 let isAnimating  = false;
 let cardElements  = [];
 
-btnBack.addEventListener('click', closeFeed);
+btnBack.addEventListener('click', () => {
+  closeFeed();
+  setTimeout(() => { if (homeCards.length > 0) updateCarousel(homeIndex, false); }, 500);
+});
 
 function openCollection(idx) {
   const col = COLLECTIONS[idx];
@@ -638,7 +803,10 @@ document.addEventListener('keydown', (e) => {
   if (!feedScreen.classList.contains('open')) return;
   if (e.key === 'ArrowDown' || e.key === 'j')  { e.preventDefault(); swipeUp(); }
   if (e.key === 'ArrowUp'   || e.key === 'k')  { e.preventDefault(); swipeDown(); }
-  if (e.key === 'Escape') { closeFeed(); }
+  if (e.key === 'Escape') {
+    closeFeed();
+    setTimeout(() => { if (homeCards.length > 0) updateCarousel(homeIndex, false); }, 500);
+  }
 });
 
 console.log('🧠 辩论证伪 · 合集 → 卡片流 已就绪');
